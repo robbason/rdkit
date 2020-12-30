@@ -614,11 +614,10 @@ void testMaxDistanceFlip(){
   Atom *otherCarbon = mol2->getAtomWithIdx(7);
   std::cout << "othercarbon: " << otherCarbon->getAtomicNum()<<std::endl;
   mol2->removeAtom(5);
-  Atom atom = Atom(7);
-  int newIndex = mol2->addAtom(&atom);
+  Atom *atom = new Atom(7);
+  int newIndex = mol2->addAtom(atom, true, true);
   int otherIndex = otherCarbon->getIdx();
   mol2->addBond(newIndex, otherIndex, Bond::BondType::SINGLE);
-  //mol2->debugMol(std::cout);
   mols.emplace_back(mol2);
   //std::cout << "Mol2 SMILES: " << MolToSmiles(*mol2) << std::endl;
   MCSParameters p;
