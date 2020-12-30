@@ -571,6 +571,7 @@ MCSResult *FindMCSWrapper(python::object mols, bool maximizeBonds,
                           double threshold, unsigned timeout, bool verbose,
                           bool matchValences, bool ringMatchesRingOnly,
                           bool completeRingsOnly, bool matchChiralTag,
+                          float maxDistance,
                           AtomComparator atomComp, BondComparator bondComp,
                           RingComparator ringComp, std::string seedSmarts) {
   std::vector<ROMOL_SPTR> ms;
@@ -591,6 +592,7 @@ MCSResult *FindMCSWrapper(python::object mols, bool maximizeBonds,
   p.AtomCompareParameters.MatchValences = matchValences;
   p.AtomCompareParameters.MatchChiralTag = matchChiralTag;
   p.AtomCompareParameters.RingMatchesRingOnly = ringMatchesRingOnly;
+  p.AtomCompareParameters.MaxDistance = maxDistance;
   p.setMCSAtomTyperFromEnum(atomComp);
   p.setMCSBondTyperFromEnum(bondComp);
   p.BondCompareParameters.RingMatchesRingOnly = ringMatchesRingOnly;
@@ -688,6 +690,7 @@ BOOST_PYTHON_MODULE(rdFMCS) {
        python::arg("ringMatchesRingOnly") = false,
        python::arg("completeRingsOnly") = false,
        python::arg("matchChiralTag") = false,
+       python::arg("maxDistance") = -1.0,
        python::arg("atomCompare") = RDKit::AtomCompareElements,
        python::arg("bondCompare") = RDKit::BondCompareOrder,
        python::arg("ringCompare") = RDKit::IgnoreRingFusion,
@@ -769,6 +772,9 @@ BOOST_PYTHON_MODULE(rdFMCS) {
       .def_readwrite("MatchChiralTag",
                      &RDKit::MCSAtomCompareParameters::MatchChiralTag,
                      "include atom chirality in the match")
+      .def_readwrite("MaxDistance",
+                     &RDKit::MCSAtomCompareParameters::MaxDistance,
+                     "Require atom proximity in 3D")
       .def_readwrite("MatchFormalCharge",
                      &RDKit::MCSAtomCompareParameters::MatchFormalCharge,
                      "include formal charge in the match")
