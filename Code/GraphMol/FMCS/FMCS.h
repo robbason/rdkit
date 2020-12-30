@@ -43,6 +43,7 @@ struct RDKIT_FMCS_EXPORT MCSAtomCompareParameters {
   bool MatchFormalCharge = false;
   bool RingMatchesRingOnly = false;
   bool MatchIsotope = false;
+  float MaxDistance = -1.0;
 };
 
 struct RDKIT_FMCS_EXPORT MCSBondCompareParameters {
@@ -75,6 +76,10 @@ RDKIT_FMCS_EXPORT bool checkAtomCharge(const MCSAtomCompareParameters& p,
                                        const ROMol& mol1, unsigned int atom1,
                                        const ROMol& mol2, unsigned int atom2);
 RDKIT_FMCS_EXPORT bool checkAtomChirality(const MCSAtomCompareParameters& p,
+                                          const ROMol& mol1, unsigned int atom1,
+                                          const ROMol& mol2,
+                                          unsigned int atom2);
+RDKIT_FMCS_EXPORT bool checkAtomDistance(const MCSAtomCompareParameters& p,
                                           const ROMol& mol1, unsigned int atom1,
                                           const ROMol& mol2,
                                           unsigned int atom2);
@@ -177,12 +182,14 @@ RDKIT_FMCS_EXPORT MCSResult findMCS(
     const std::vector<ROMOL_SPTR>& mols, bool maximizeBonds, double threshold,
     unsigned timeout, bool verbose, bool matchValences,
     bool ringMatchesRingOnly, bool completeRingsOnly, bool matchChiralTag,
+    float maxDistance,
     AtomComparator atomComp, BondComparator bondComp, RingComparator ringComp);
 RDKIT_FMCS_EXPORT MCSResult
 findMCS(const std::vector<ROMOL_SPTR>& mols, bool maximizeBonds,
         double threshold = 1.0, unsigned timeout = 3600, bool verbose = false,
         bool matchValences = false, bool ringMatchesRingOnly = false,
         bool completeRingsOnly = false, bool matchChiralTag = false,
+        float maxDistance = -1.0,
         AtomComparator atomComp = AtomCompareElements,
         BondComparator bondComp = BondCompareOrder);
 

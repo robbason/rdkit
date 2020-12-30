@@ -47,6 +47,7 @@
 #include <RDGeneral/RDLog.h>
 #include <RDGeneral/utils.h>
 #include "../RDKitBase.h"
+#include "../DistGeomHelpers/Embedder.h"
 #include "../FileParsers/FileParsers.h"  //MOL single molecule !
 #include "../FileParsers/MolSupplier.h"  //SDF
 #include "../SmilesParse/SmilesParse.h"
@@ -525,6 +526,80 @@ void testTarget_no_10188_49064() {
             << res.NumBonds << " bonds\n";
   printTime();
   TEST_ASSERT(res.NumAtoms == 15 && res.NumBonds == 14);
+  BOOST_LOG(rdInfoLog) << "\tdone" << std::endl;
+}
+
+void testMaxDistance() {
+  BOOST_LOG(rdInfoLog) << "-------------------------------------" << std::endl;
+  BOOST_LOG(rdInfoLog) << "Testing FMCS testMaxDistance" << std::endl;
+  std::cout << "\ntestMaxDistance()\n";
+
+  std::vector<ROMOL_SPTR> mols;
+  std::vector<MatchVectType> matches;
+  const char* smi[] = {
+      "C1CCOC[C@]1(NC)O",
+      "C1CCOC[C@@]1(NC)O",
+  };
+  // Generate overlapping 3D coordinates for the molecules
+  const int seed = 0xf00a;
+  int cid;
+  const ROMol *scaffoldOrig = SmilesToMol("C1CCOCC1");
+  ROMol *scaffold = MolOps::addHs(*scaffoldOrig);
+  cid = RDKit::DGeomHelpers::EmbedMolecule(*scaffold, 0, seed);
+  TEST_ASSERT(cid > -1);
+  const ROMol *scaffoldNoHs = MolOps::removeHs(*scaffold);
+  const Conformer& scaffoldConf = scaffoldNoHs->getConformer(0);
+
+  for (auto& smiString : smi) {
+    ROMol *mol = SmilesToMol(smiString);
+    mol = MolOps::addHs(*mol);
+    int numMatches = RDKit::SubstructMatch(*mol, *scaffoldNoHs, matches);
+    TEST_ASSERT(numMatches > 0);
+    std::map< int, RDGeom::Point3D > coordMap;
+
+    for (std::vector<MatchVectType>::const_iterator it = matches.begin();
+         it != matches.end(); ++it) {
+      MatchVectType matchVect = *it;
+      for (unsigned int i = 0; i < matchVect.size(); i++){
+        unsigned int scaffoldIdx = matchVect[i].first;
+        unsigned int molIdx = matchVect[i].second;
+        coordMap[molIdx] = scaffoldConf.getAtomPos(scaffoldIdx);
+      }
+    }
+    RDKit::DGeomHelpers::EmbedParameters params(RDKit::DGeomHelpers::ETKDG);
+    params.coordMap = &coordMap;
+    params.useRandomCoords = true;
+    params.maxIterations = 1;
+    params.randomSeed = seed;
+    cid = RDKit::DGeomHelpers::EmbedMolecule(*mol, params);
+    TEST_ASSERT(cid > -1);
+    mols.emplace_back(mol);
+  }
+
+  MCSParameters p;
+  p.AtomCompareParameters.MaxDistance = 1.0;
+  t0 = nanoClock();
+  MCSResult res = findMCS(mols, &p);
+  std::cout << "Exact Atom MCS: " << res.SmartsString << " "
+            << res.NumAtoms << " atoms, " << res.NumBonds << " bonds\n";
+  printTime();
+  if (res.NumAtoms != 14 || res.NumBonds != 14){
+    std::cerr << "testMaxDistance failed, expected 14 atoms, 14 bonds\n";
+    TEST_ASSERT(res.NumAtoms == 14 && res.NumBonds == 14);
+  }
+  // Now let's allow the non-ring O and N to match
+  p.AtomTyper = MCSAtomCompareAnyHeavyAtom;
+  t0 = nanoClock();
+  res = findMCS(mols, &p);
+  std::cout << "Any Heavy Atom MCS: " << res.SmartsString << " "
+            << res.NumAtoms << " atoms, " << res.NumBonds << " bonds\n";
+  printTime();
+  if (res.NumAtoms != 17 || res.NumBonds != 17){
+    std::cerr << "testMaxDistance failed matching heavy atoms,"
+              << " expected 17 atoms, 17 bonds\n";
+    TEST_ASSERT(res.NumAtoms == 17 && res.NumBonds == 17);
+  }
+
   BOOST_LOG(rdInfoLog) << "\tdone" << std::endl;
 }
 
@@ -1809,7 +1884,7 @@ void test_p38() {
   }
   {
     MCSResult res =
-        findMCS(mols, true, 1.0, 3600, false, false, true, true, false,
+        findMCS(mols, true, 1.0, 3600, false, false, true, true, false, -1.0,
                 AtomCompareElements, BondCompareOrder, PermissiveRingFusion);
     // std::cerr << "MCS MatchFusedRings: "
     //           << res.SmartsString << " " << res.NumAtoms
@@ -1820,7 +1895,7 @@ void test_p38() {
   }
   {
     MCSResult res =
-        findMCS(mols, true, 1.0, 3600, false, false, true, true, false,
+        findMCS(mols, true, 1.0, 3600, false, false, true, true, false, -1.0,
                 AtomCompareElements, BondCompareOrder, StrictRingFusion);
     // std::cerr << "MCS MatchFusedRings: "
     //           << res.SmartsString << " " << res.NumAtoms
@@ -2244,6 +2319,8 @@ int main(int argc, const char* argv[]) {
   testAtomCompareAnyAtomBond();
   testAtomCompareAnyHeavyAtom();
   testAtomCompareAnyHeavyAtom1();
+
+  testMaxDistance();
 
   test18();
   test504();
