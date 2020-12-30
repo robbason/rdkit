@@ -529,76 +529,131 @@ void testTarget_no_10188_49064() {
   BOOST_LOG(rdInfoLog) << "\tdone" << std::endl;
 }
 
+ROMol *embed3DFromSmiles(const char* smiString, const ROMol *scaffoldNoHs,
+                         const int seed){
+  int cid;
+  std::map< int, RDGeom::Point3D > coordMap;
+  std::vector<MatchVectType> matches;
+
+  const Conformer& scaffoldConf = scaffoldNoHs->getConformer(0);
+  ROMol *mol = SmilesToMol(smiString);
+  mol = MolOps::addHs(*mol);
+  int numMatches = RDKit::SubstructMatch(*mol, *scaffoldNoHs, matches);
+  TEST_ASSERT(numMatches > 0);
+
+  for (std::vector<MatchVectType>::const_iterator it = matches.begin();
+       it != matches.end(); ++it) {
+    MatchVectType matchVect = *it;
+    for (unsigned int i = 0; i < matchVect.size(); i++){
+      unsigned int scaffoldIdx = matchVect[i].first;
+      unsigned int molIdx = matchVect[i].second;
+      //if(molIdx >= mol->getNumAtoms()){
+      //std::cerr << "looking for " << molIdx <<","<<scaffoldIdx << " and have " << mol->getNumAtoms() << std::endl;
+        //}
+      coordMap[molIdx] = scaffoldConf.getAtomPos(scaffoldIdx);
+    }
+  }
+  RDKit::DGeomHelpers::EmbedParameters params(RDKit::DGeomHelpers::ETKDG);
+  params.coordMap = &coordMap;
+  params.useRandomCoords = true;
+  params.maxIterations = 10;
+  params.randomSeed = seed;
+  params.verbose = true;
+  cid = RDKit::DGeomHelpers::EmbedMolecule(*mol, params);
+  if (cid < 0){
+    std::cerr << "cid was " << cid << " trying to embed: " <<std::endl;
+    for (std::map<int, RDGeom::Point3D>::const_iterator i=coordMap.begin();
+         i!=coordMap.end();i++){
+      std::cerr << i->first<<": "<<i->second<<std::endl;
+    }
+  }
+  TEST_ASSERT(cid > -1);
+  return mol;
+}
+
+void checkMCS(const std::vector<ROMOL_SPTR> mols, const MCSParameters p,
+              unsigned int expectedAtoms, unsigned int expectedBonds){
+  t0 = nanoClock();
+  MCSResult res = findMCS(mols, &p);
+  std::cout << "Exact Atom MCS: " << res.SmartsString << " "
+            << res.NumAtoms << " atoms, " << res.NumBonds << " bonds"
+            << std::endl;
+  printTime();
+  if (res.NumAtoms != expectedAtoms || res.NumBonds != expectedBonds){
+    std::cerr << "testMaxDistance failed, expected "
+              << expectedAtoms << " atoms, "<< expectedBonds << " bonds"
+              << std::endl;
+    TEST_ASSERT(res.NumAtoms == expectedAtoms && res.NumBonds == expectedBonds);
+  }
+
+}
+
+ROMol *scaffoldFromSmiles(const char *scaffoldSmiles, const int seed){
+  int cid;
+  const ROMol *scaffoldOrig = SmilesToMol(scaffoldSmiles);
+  ROMol *scaffold = MolOps::addHs(*scaffoldOrig);
+  cid = RDKit::DGeomHelpers::EmbedMolecule(*scaffold, 0, seed);
+  TEST_ASSERT(cid > -1);
+  return MolOps::removeHs(*scaffold);
+}
+
+void testMaxDistanceFlip(){
+  BOOST_LOG(rdInfoLog) << "-------------------------------------" << std::endl;
+  BOOST_LOG(rdInfoLog) << "Testing FMCS testMaxDistanceFlip" << std::endl;
+  std::cout << "\ntestMaxDistanceFlip()\n";
+
+  std::vector<ROMOL_SPTR> mols;
+  const int seed = 0xf00a;
+  const ROMol *scaffoldNoHs = scaffoldFromSmiles("O=CC1CCCCC1", seed);
+  const char * molSmiles = "O=CC1CC(N)CCC1";
+  ROMol *mol = embed3DFromSmiles(molSmiles, scaffoldNoHs, seed);
+  mols.emplace_back(mol);
+  RWMol *mol2 = new RWMol(*mol);
+  MolOps::removeHs(*mol2);
+
+  Atom *otherCarbon = mol2->getAtomWithIdx(7);
+  std::cout << "othercarbon: " << otherCarbon->getAtomicNum()<<std::endl;
+  mol2->removeAtom(5);
+  Atom atom = Atom(7);
+  int newIndex = mol2->addAtom(&atom);
+  int otherIndex = otherCarbon->getIdx();
+  mol2->addBond(newIndex, otherIndex, Bond::BondType::SINGLE);
+  //mol2->debugMol(std::cout);
+  mols.emplace_back(mol2);
+  //std::cout << "Mol2 SMILES: " << MolToSmiles(*mol2) << std::endl;
+  MCSParameters p;
+  // Should match the flipped N if we don't filter on max distance
+  checkMCS(mols, p, 9, 9);
+  p.AtomCompareParameters.MaxDistance = 1.0;
+  checkMCS(mols, p, 8, 8);
+  BOOST_LOG(rdInfoLog) << "\tdone" << std::endl;
+
+}
+
 void testMaxDistance() {
   BOOST_LOG(rdInfoLog) << "-------------------------------------" << std::endl;
   BOOST_LOG(rdInfoLog) << "Testing FMCS testMaxDistance" << std::endl;
   std::cout << "\ntestMaxDistance()\n";
 
   std::vector<ROMOL_SPTR> mols;
-  std::vector<MatchVectType> matches;
+
   const char* smi[] = {
       "C1CCOC[C@]1(NC)O",
       "C1CCOC[C@@]1(NC)O",
   };
   // Generate overlapping 3D coordinates for the molecules
   const int seed = 0xf00a;
-  int cid;
-  const ROMol *scaffoldOrig = SmilesToMol("C1CCOCC1");
-  ROMol *scaffold = MolOps::addHs(*scaffoldOrig);
-  cid = RDKit::DGeomHelpers::EmbedMolecule(*scaffold, 0, seed);
-  TEST_ASSERT(cid > -1);
-  const ROMol *scaffoldNoHs = MolOps::removeHs(*scaffold);
-  const Conformer& scaffoldConf = scaffoldNoHs->getConformer(0);
-
+  const ROMol *scaffoldNoHs = scaffoldFromSmiles("C1CCOCC1", seed);
   for (auto& smiString : smi) {
-    ROMol *mol = SmilesToMol(smiString);
-    mol = MolOps::addHs(*mol);
-    int numMatches = RDKit::SubstructMatch(*mol, *scaffoldNoHs, matches);
-    TEST_ASSERT(numMatches > 0);
-    std::map< int, RDGeom::Point3D > coordMap;
-
-    for (std::vector<MatchVectType>::const_iterator it = matches.begin();
-         it != matches.end(); ++it) {
-      MatchVectType matchVect = *it;
-      for (unsigned int i = 0; i < matchVect.size(); i++){
-        unsigned int scaffoldIdx = matchVect[i].first;
-        unsigned int molIdx = matchVect[i].second;
-        coordMap[molIdx] = scaffoldConf.getAtomPos(scaffoldIdx);
-      }
-    }
-    RDKit::DGeomHelpers::EmbedParameters params(RDKit::DGeomHelpers::ETKDG);
-    params.coordMap = &coordMap;
-    params.useRandomCoords = true;
-    params.maxIterations = 1;
-    params.randomSeed = seed;
-    cid = RDKit::DGeomHelpers::EmbedMolecule(*mol, params);
-    TEST_ASSERT(cid > -1);
-    mols.emplace_back(mol);
+    mols.emplace_back(embed3DFromSmiles(smiString, scaffoldNoHs, seed));
   }
 
   MCSParameters p;
   p.AtomCompareParameters.MaxDistance = 1.0;
-  t0 = nanoClock();
-  MCSResult res = findMCS(mols, &p);
-  std::cout << "Exact Atom MCS: " << res.SmartsString << " "
-            << res.NumAtoms << " atoms, " << res.NumBonds << " bonds\n";
-  printTime();
-  if (res.NumAtoms != 14 || res.NumBonds != 14){
-    std::cerr << "testMaxDistance failed, expected 14 atoms, 14 bonds\n";
-    TEST_ASSERT(res.NumAtoms == 14 && res.NumBonds == 14);
-  }
+  checkMCS(mols, p, 14, 14);
   // Now let's allow the non-ring O and N to match
   p.AtomTyper = MCSAtomCompareAnyHeavyAtom;
-  t0 = nanoClock();
-  res = findMCS(mols, &p);
-  std::cout << "Any Heavy Atom MCS: " << res.SmartsString << " "
-            << res.NumAtoms << " atoms, " << res.NumBonds << " bonds\n";
-  printTime();
-  if (res.NumAtoms != 17 || res.NumBonds != 17){
-    std::cerr << "testMaxDistance failed matching heavy atoms,"
-              << " expected 17 atoms, 17 bonds\n";
-    TEST_ASSERT(res.NumAtoms == 17 && res.NumBonds == 17);
-  }
+  checkMCS(mols, p, 17, 17);
 
   BOOST_LOG(rdInfoLog) << "\tdone" << std::endl;
 }
@@ -2321,6 +2376,7 @@ int main(int argc, const char* argv[]) {
   testAtomCompareAnyHeavyAtom1();
 
   testMaxDistance();
+  testMaxDistanceFlip();
 
   test18();
   test504();
