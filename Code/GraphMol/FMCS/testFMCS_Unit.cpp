@@ -597,6 +597,46 @@ ROMol *scaffoldFromSmiles(const char *scaffoldSmiles, const int seed){
   return MolOps::removeHs(*scaffold);
 }
 
+void testJnk1LigandsDistance(){
+  BOOST_LOG(rdInfoLog) << "-------------------------------------" << std::endl;
+  BOOST_LOG(rdInfoLog) << "Testing FMCS testJnk1LigandsDistance" << std::endl;
+  std::cout << "\ntestJnk1LigandsDistance()\n";
+  std::vector<ROMOL_SPTR> mols;
+  const char* path = "Test";
+  const char* jnk1sdf = "Jnk1_ligands.sdf";
+  std::string fn(std::string(path) + "/" + jnk1sdf);
+
+  RDKit::MolSupplier* suppl = nullptr;
+  try {
+    suppl = new RDKit::SDMolSupplier(fn);
+  } catch (...) {
+    std::cerr << "ERROR: RDKit could not load input file"
+              << "\n";
+    return;
+  }
+  ROMol* m1 = nullptr;
+  ROMol* m2 = nullptr;
+  while (!suppl->atEnd()) {
+    ROMol* m = suppl->next();
+    if (m) {
+      if(m->getProp<std::string>("_Name") == "18629-1"){
+        m1 = m;
+      } else if(m->getProp<std::string>("_Name") == "18634-1"){
+        m2 = m;
+      } else {
+        break;
+      }
+      mols.emplace_back(m);
+    }
+  }
+  MCSParameters p;
+  // Should match the flipped N if we don't filter on max distance
+  checkMCS(mols, p, 22, 23);
+  p.AtomCompareParameters.MaxDistance = 1.5;
+  checkMCS(mols, p, 21, 21);
+  BOOST_LOG(rdInfoLog) << "\tdone" << std::endl;
+
+}
 void testMaxDistanceFlip(){
   BOOST_LOG(rdInfoLog) << "-------------------------------------" << std::endl;
   BOOST_LOG(rdInfoLog) << "Testing FMCS testMaxDistanceFlip" << std::endl;
@@ -2376,6 +2416,7 @@ int main(int argc, const char* argv[]) {
 
   testMaxDistance();
   testMaxDistanceFlip();
+  testJnk1LigandsDistance();
 
   test18();
   test504();
