@@ -68,20 +68,20 @@ void MaximumCommonSubgraph::init() {
 #ifdef DUP_SUBSTRUCT_CACHE
   DuplicateCache.clear();
 #endif
-  void* userData = Parameters.CompareFunctionsUserData;
-
   size_t nq = 0;
 #ifdef FAST_SUBSTRUCT_CACHE
   // fill out RingMatchTables to check cache Hash collision by checking match a
   // part of Query to Query
-  if (!userData  // predefined functor - compute RingMatchTable for all targets
-      && (Parameters.BondCompareParameters.CompleteRingsOnly ||
-          Parameters.BondCompareParameters.RingMatchesRingOnly ||
-          Parameters.AtomCompareParameters.RingMatchesRingOnly)) {
-    RingMatchTables.init(QueryMolecule);
-    Parameters.CompareFunctionsUserData = &RingMatchTables;
-    RingMatchTables.computeRingMatchTable(QueryMolecule, QueryMolecule,
-                                          Parameters);
+  if (!CompareFunctionsData.RingMatchTables){
+    // predefined functor - compute RingMatchTable for all targets
+    if(Parameters.BondCompareParameters.CompleteRingsOnly ||
+       Parameters.BondCompareParameters.RingMatchesRingOnly ||
+       Parameters.AtomCompareParameters.RingMatchesRingOnly) {
+      RingMatchTables.init(QueryMolecule);
+      CompareFunctionsData.RingMatchTables = &RingMatchTables;
+      RingMatchTables.computeRingMatchTable(QueryMolecule, QueryMolecule,
+                                            Parameters, CompareFunctionsData);
+    }
   }
 
   // fill out match tables
@@ -93,7 +93,7 @@ void MaximumCommonSubgraph::init() {
           ai, aj,
           Parameters.AtomTyper(Parameters.AtomCompareParameters, *QueryMolecule,
                                ai, *QueryMolecule, aj,
-                               Parameters.CompareFunctionsUserData));
+                               CompareFunctionsData));
     }
   }
   nq = QueryMolecule->getNumBonds();
@@ -104,7 +104,7 @@ void MaximumCommonSubgraph::init() {
           ai, aj,
           Parameters.BondTyper(Parameters.BondCompareParameters, *QueryMolecule,
                                ai, *QueryMolecule, aj,
-                               Parameters.CompareFunctionsUserData));
+                               CompareFunctionsData));
     }
   }
   // Compute label values based on current functor and parameters for code
@@ -140,7 +140,8 @@ void MaximumCommonSubgraph::init() {
           if (Parameters.AtomTyper(Parameters.AtomCompareParameters,
                                    *QueryMolecule, label.ItemIndex,
                                    *QueryMolecule, ai,
-                                   userData)) {  // equal items
+                                   CompareFunctionsData)) {
+            // equal items
             QueryAtomLabels[ai] = label.Value;
             break;
           }
@@ -159,8 +160,9 @@ void MaximumCommonSubgraph::init() {
   for (size_t aj = 0; aj < nq; aj++) {
     const Bond* bond = QueryMolecule->getBondWithIdx(aj);
     unsigned ring = 0;
-    if (!userData && (Parameters.BondCompareParameters.CompleteRingsOnly ||
-                      Parameters.BondCompareParameters.RingMatchesRingOnly)) {
+    if (!CompareFunctionsData.RingMatchTables
+        && (Parameters.BondCompareParameters.CompleteRingsOnly ||
+            Parameters.BondCompareParameters.RingMatchesRingOnly)) {
       ring = RingMatchTables.isQueryBondInRing(aj) ? 0 : 1;  // is bond in ring
     }
     if (MCSBondCompareAny ==
@@ -194,7 +196,7 @@ void MaximumCommonSubgraph::init() {
         if (Parameters.BondTyper(Parameters.BondCompareParameters,
                                  *QueryMolecule, label.ItemIndex,
                                  *QueryMolecule, aj,
-                                 userData)) {  // equal bonds + ring ...
+                                 CompareFunctionsData)) {  // equal bonds + ring ...
           QueryBondLabels[aj] = label.Value;
           break;
         }
@@ -227,13 +229,14 @@ void MaximumCommonSubgraph::init() {
 
 #ifdef FAST_SUBSTRUCT_CACHE
     // fill out RingMatchTables
-    if (!userData  // predefined functor - compute RingMatchTable for all
-                   // targets
+    if (!CompareFunctionsData.RingMatchTables
+        // predefined functor - compute RingMatchTable for all
+        // targets
         && (Parameters.BondCompareParameters.CompleteRingsOnly ||
             Parameters.BondCompareParameters.RingMatchesRingOnly)) {
       RingMatchTables.addTargetBondRingsIndeces(Targets[i].Molecule);
       RingMatchTables.computeRingMatchTable(QueryMolecule, Targets[i].Molecule,
-                                            Parameters);
+                                            Parameters, CompareFunctionsData);
     }
 #endif
 
@@ -248,7 +251,7 @@ void MaximumCommonSubgraph::init() {
             ai, aj,
             Parameters.AtomTyper(Parameters.AtomCompareParameters,
                                  *QueryMolecule, ai, *Targets[i].Molecule, aj,
-                                 Parameters.CompareFunctionsUserData));
+                                 CompareFunctionsData));
       }
     }
     nq = QueryMolecule->getNumBonds();
@@ -260,11 +263,11 @@ void MaximumCommonSubgraph::init() {
             ai, aj,
             Parameters.BondTyper(Parameters.BondCompareParameters,
                                  *QueryMolecule, ai, *Targets[i].Molecule, aj,
-                                 Parameters.CompareFunctionsUserData));
+                                 CompareFunctionsData));
       }
     }
   }
-  Parameters.CompareFunctionsUserData = userData;  // restore
+  CompareFunctionsData.RingMatchTables = nullptr;  // restore
 }
 
 struct QueryRings {
@@ -885,6 +888,19 @@ bool MaximumCommonSubgraph::createSeedFromMCS(size_t newQueryTarget,
   return true;
 }
 
+void MaximumCommonSubgraph::recordChosenConformerIdx(const ROMol *mol, std::vector<unsigned int>::const_iterator *conformerIterPtr){
+  int conformerIdx = 0;
+  if (Parameters.AtomCompareParameters.ConformerIdxs.size() > 0){
+    if (*conformerIterPtr == Parameters.AtomCompareParameters.ConformerIdxs.cend()){
+      throw std::runtime_error(
+        "FMCS. Invalid argument. If conformerIdxs parameter is set, it must be as long as mols");
+    }
+    conformerIdx = *(*conformerIterPtr);
+    ++(*conformerIterPtr);
+  }
+  //CompareFunctionsData.ConformerIdxMap[mol] = conformerIdx;
+}
+
 MCSResult MaximumCommonSubgraph::find(const std::vector<ROMOL_SPTR>& src_mols) {
   clear();
   MCSResult res;
@@ -915,10 +931,20 @@ MCSResult MaximumCommonSubgraph::find(const std::vector<ROMOL_SPTR>& src_mols) {
     Parameters.BondCompareParameters.RingMatchesRingOnly = true;
   }
 
+  std::vector<unsigned int>::const_iterator conformerIter;
+  //if (Parameters.AtomCompareParameters.MaxDistance > 0){
+  //  if (Parameters.AtomCompareParameters.ConformerIdxs.size() > 0){
+  conformerIter = Parameters.AtomCompareParameters.ConformerIdxs.cbegin();
+  //  }
+  //}
+
   for (const auto& src_mol : src_mols) {
     Molecules.push_back(src_mol.get());
     if (!Molecules.back()->getRingInfo()->isInitialized()) {
       Molecules.back()->getRingInfo()->initialize();  // but do not fill out !!!
+    }
+    if (Parameters.AtomCompareParameters.MaxDistance > 0){
+      recordChosenConformerIdx(Molecules.back(), &conformerIter);
     }
   }
 

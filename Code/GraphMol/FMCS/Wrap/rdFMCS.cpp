@@ -72,23 +72,25 @@ struct PyMCSBondCompare : public boost::python::wrapper<PyMCSBondCompare> {
   inline static void updateRingMatchTables(FMCS::RingMatchTableSet &rmt,
                                            std::set<const ROMol *> &rmtMols,
                                            const ROMol &mol1, const ROMol &mol2,
-                                           const MCSParameters &p) {
+                                           const MCSParameters &p,
+                                           MCSCompareFunctionsData &cfd) {
     if (!rmtMols.count(&mol1)) {
       rmt.init(&mol1);
-      rmt.computeRingMatchTable(&mol1, &mol1, p);
+      rmt.computeRingMatchTable(&mol1, &mol1, p, cfd);
       rmtMols.insert(&mol1);
     }
     if (!rmtMols.count(&mol2)) {
-      rmt.computeRingMatchTable(&mol1, &mol2, p);
+      rmt.computeRingMatchTable(&mol1, &mol2, p, cfd);
       rmt.addTargetBondRingsIndeces(&mol2);
       rmtMols.insert(&mol2);
     }
   }
   inline bool checkBondRingMatch(const MCSBondCompareParameters& p,
                                  const ROMol& mol1, unsigned int bond1,
-                                 const ROMol& mol2, unsigned int bond2) {
+                                 const ROMol& mol2, unsigned int bond2,
+                                 MCSCompareFunctionsData& cfd) {
     updateRingMatchTables(ringMatchTables, ringMatchTablesMols, mol1, mol2,
-                          *mcsParameters);
+                          *mcsParameters, cfd);
     return RDKit::checkBondRingMatch(p, mol1, bond1, mol2, bond2, &ringMatchTables);
   }
   bool hasPythonOverride(const char *attrName) {
@@ -521,9 +523,9 @@ private:
   static bool MCSBondComparePyFunc(const MCSBondCompareParameters& p,
                                    const ROMol& mol1, unsigned int bond1,
                                    const ROMol& mol2, unsigned int bond2,
-                                   void* userData) {
-    PRECONDITION(userData, "userData must not be NULL");
-    PyCompareFunctionUserData *cfud = static_cast<PyCompareFunctionUserData *>(userData);
+                                   MCSCompareFunctionsData& cfd) {
+    //PRECONDITION(userData, "userData must not be NULL");
+    //PyCompareFunctionUserData *cfud = static_cast<PyCompareFunctionUserData *>(userData);
     bool res = false;
     if ((p.RingMatchesRingOnly ||
          cfud->mcsParameters->AtomCompareParameters.RingMatchesRingOnly) &&
@@ -571,7 +573,7 @@ MCSResult *FindMCSWrapper(python::object mols, bool maximizeBonds,
                           double threshold, unsigned timeout, bool verbose,
                           bool matchValences, bool ringMatchesRingOnly,
                           bool completeRingsOnly, bool matchChiralTag,
-                          float maxDistance,
+                          float maxDistance, python::object conformerIdxs,
                           AtomComparator atomComp, BondComparator bondComp,
                           RingComparator ringComp, std::string seedSmarts) {
   std::vector<ROMOL_SPTR> ms;
@@ -583,6 +585,14 @@ MCSResult *FindMCSWrapper(python::object mols, bool maximizeBonds,
     }
     ms[i] = python::extract<ROMOL_SPTR>(mols[i]);
   }
+
+  std::vector<unsigned int> conformerIdxsVect;
+  unsigned int nConformerIdxs = python::extract<unsigned int>(conformerIdxs.attr("__len__")());
+  conformerIdxsVect.resize(nConformerIdxs);
+  for (unsigned  int i = 0; i < nConformerIdxs; ++i) {
+    conformerIdxsVect[i] = python::extract<unsigned int>(conformerIdxs[i]);
+  }
+
   MCSParameters p;
   p.Threshold = threshold;
   p.MaximizeBonds = maximizeBonds;
@@ -593,6 +603,7 @@ MCSResult *FindMCSWrapper(python::object mols, bool maximizeBonds,
   p.AtomCompareParameters.MatchChiralTag = matchChiralTag;
   p.AtomCompareParameters.RingMatchesRingOnly = ringMatchesRingOnly;
   p.AtomCompareParameters.MaxDistance = maxDistance;
+  p.AtomCompareParameters.ConformerIdxs = conformerIdxsVect;
   p.setMCSAtomTyperFromEnum(atomComp);
   p.setMCSBondTyperFromEnum(bondComp);
   p.BondCompareParameters.RingMatchesRingOnly = ringMatchesRingOnly;
@@ -691,6 +702,7 @@ BOOST_PYTHON_MODULE(rdFMCS) {
        python::arg("completeRingsOnly") = false,
        python::arg("matchChiralTag") = false,
        python::arg("maxDistance") = -1.0,
+       python::arg("conformerIdxs") = nullptr,
        python::arg("atomCompare") = RDKit::AtomCompareElements,
        python::arg("bondCompare") = RDKit::BondCompareOrder,
        python::arg("ringCompare") = RDKit::IgnoreRingFusion,
@@ -775,6 +787,9 @@ BOOST_PYTHON_MODULE(rdFMCS) {
       .def_readwrite("MaxDistance",
                      &RDKit::MCSAtomCompareParameters::MaxDistance,
                      "Require atom proximity in 3D")
+      .def_readwrite("ConformerIdxs",
+                     &RDKit::MCSAtomCompareParameters::ConformerIdxs,
+                     "Conformer IDs to use (default is 0) for each molecule")
       .def_readwrite("MatchFormalCharge",
                      &RDKit::MCSAtomCompareParameters::MatchFormalCharge,
                      "include formal charge in the match")

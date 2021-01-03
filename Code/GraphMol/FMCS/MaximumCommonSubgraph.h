@@ -51,6 +51,7 @@ class RDKIT_FMCS_EXPORT MaximumCommonSubgraph {
   MCSParameters Parameters;
   unsigned ThresholdCount;  // min number of matching
   std::vector<const ROMol*> Molecules;
+  MCSCompareFunctionsData CompareFunctionsData;
 #ifdef FAST_SUBSTRUCT_CACHE
   std::vector<unsigned> QueryAtomLabels;  // for code Morgan. Value based on
                                           // current functor and parameters
@@ -91,6 +92,7 @@ class RDKIT_FMCS_EXPORT MaximumCommonSubgraph {
   void clear() {
     Targets.clear();
     Molecules.clear();
+    CompareFunctionsData.ConformerIdxMap.clear();
     To = nanoClock();
   }
   void init();
@@ -100,7 +102,7 @@ class RDKIT_FMCS_EXPORT MaximumCommonSubgraph {
   std::pair<std::string, RWMol*> generateResultSMARTSAndQueryMol(
       const MCS& mcsIdx) const;
   bool addFusedBondQueries(const MCS& McsIdx, RWMol* rwMol) const;
-
+  void recordChosenConformerIdx(const ROMol *mol, std::vector<unsigned int>::const_iterator *conformerIterPtr);
   bool match(Seed& seed);
   bool matchIncrementalFast(Seed& seed, unsigned itarget);
 };
