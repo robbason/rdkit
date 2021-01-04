@@ -570,7 +570,7 @@ ROMol *embed3DFromSmiles(const char* smiString, const ROMol *scaffoldNoHs,
   TEST_ASSERT(cid > -1);
   return mol;
 }
-
+#define MCSTESTREPEATS 0
 void checkMCS(const std::vector<ROMOL_SPTR> mols, const MCSParameters p,
               unsigned int expectedAtoms, unsigned int expectedBonds){
   t0 = nanoClock();
@@ -578,6 +578,11 @@ void checkMCS(const std::vector<ROMOL_SPTR> mols, const MCSParameters p,
   std::cout << "Exact Atom MCS: " << res.SmartsString << " "
             << res.NumAtoms << " atoms, " << res.NumBonds << " bonds"
             << std::endl;
+#ifdef MCSTESTREPEATS
+  for (int i=0; i<MCSTESTREPEATS; i++){
+    res = findMCS(mols, &p);
+  }
+#endif
   printTime();
   if (res.NumAtoms != expectedAtoms || res.NumBonds != expectedBonds){
     std::cerr << "testMaxDistance failed, expected "
@@ -630,13 +635,16 @@ void testJnk1LigandsDistance(){
     }
   }
   MCSParameters p;
-  // Should match the flipped N if we don't filter on max distance
-  checkMCS(mols, p, 22, 23);
+  p.AtomTyper = MCSAtomCompareAnyHeavyAtom;
+  p.Verbose = true;
   p.AtomCompareParameters.MaxDistance = 1.5;
-  checkMCS(mols, p, 21, 21);
+  checkMCS(mols, p, 22, 22);
+  p.AtomCompareParameters.MaxDistance = -1.0;
+  // Should match the flipped N if we don't filter on max distance
+  checkMCS(mols, p, 23, 24);
   BOOST_LOG(rdInfoLog) << "\tdone" << std::endl;
-
 }
+
 void testMaxDistanceFlip(){
   BOOST_LOG(rdInfoLog) << "-------------------------------------" << std::endl;
   BOOST_LOG(rdInfoLog) << "Testing FMCS testMaxDistanceFlip" << std::endl;
@@ -661,6 +669,7 @@ void testMaxDistanceFlip(){
   mols.emplace_back(mol2);
   //std::cout << "Mol2 SMILES: " << MolToSmiles(*mol2) << std::endl;
   MCSParameters p;
+  p.Verbose = true;
   // Should match the flipped N if we don't filter on max distance
   checkMCS(mols, p, 9, 9);
   p.AtomCompareParameters.MaxDistance = 1.0;
@@ -688,6 +697,7 @@ void testMaxDistance() {
   }
 
   MCSParameters p;
+  p.Verbose = true;
   p.AtomCompareParameters.MaxDistance = 1.0;
   checkMCS(mols, p, 14, 14);
   // Now let's allow the non-ring O and N to match
@@ -1696,7 +1706,7 @@ void testGithub2663() {
     MCSParameters p;
     p.BondCompareParameters.CompleteRingsOnly = true;
     MCSResult res = findMCS(mols, &p);
-    std::cerr << "MCS: " << res.SmartsString << " " << res.NumAtoms
+    std::cout << "MCS: " << res.SmartsString << " " << res.NumAtoms
               << " atoms, " << res.NumBonds << " bonds\n"
               << std::endl;
     TEST_ASSERT(res.NumAtoms == 7);
@@ -1729,7 +1739,7 @@ void testGithub2662() {
     MCSParameters p;
     p.BondCompareParameters.CompleteRingsOnly = true;
     MCSResult res = findMCS(mols, &p);
-    std::cerr << "MCS: " << res.SmartsString << " " << res.NumAtoms
+    std::cout << "MCS: " << res.SmartsString << " " << res.NumAtoms
               << " atoms, " << res.NumBonds << " bonds\n"
               << std::endl;
     TEST_ASSERT(res.NumAtoms == 2);

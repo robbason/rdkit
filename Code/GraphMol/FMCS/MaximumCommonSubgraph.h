@@ -95,7 +95,11 @@ class RDKIT_FMCS_EXPORT MaximumCommonSubgraph {
     CompareFunctionsData.ConformerIdxMap.clear();
     To = nanoClock();
   }
+  bool evaluateQueryMolecule(size_t i);
   void init();
+  void loadMatchTables(const ROMol* targetMolecule, MatchTable& atomMatchTable, MatchTable& bondMatchTable);
+  void loadBondLabels();
+  void buildTargetTopology(Target& target);
   void makeInitialSeeds();
   bool createSeedFromMCS(size_t newQueryTarget, Seed& seed);
   bool growSeeds();  // returns false if canceled
