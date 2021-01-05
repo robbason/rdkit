@@ -127,7 +127,7 @@ struct PyAtomBondCompData {
   MCSBondCompareFunction standardBondTyperFunc;
 };
 
-struct PyCompareFunctionUserData : MCSCompareFunctionsData {
+struct PyCompareFunctionData : MCSCompareFunctionsData {
   const MCSParameters *mcsParameters;
   std::set<const ROMol *> *ringMatchTablesMols;
   PyAtomBondCompData pyAtomBondCompData;
@@ -193,7 +193,7 @@ class PyMCSParameters {
 public:
   PyMCSParameters() :
     p(new MCSParameters()),
-    cfud(new PyCompareFunctionUserData()),
+    cfud(new PyCompareFunctionData()),
     pcud(new PyProgressCallbackUserData()) {
       cfud->mcsParameters = p.get();
       pcud->mcsProgressData = nullptr;
@@ -507,8 +507,8 @@ private:
                                    const ROMol& mol2, unsigned int atom2,
                                    MCSCompareFunctionsData& cfd) {
     try {
-      PyCompareFunctionUserData& cfud = dynamic_cast<PyCompareFunctionUserData&>(cfd);
-    //PyCompareFunctionUserData& cfud = static_cast<PyCompareFunctionUserData&>(cfd);
+      PyCompareFunctionData& cfud = dynamic_cast<PyCompareFunctionData&>(cfd);
+    //PyCompareFunctionData& cfud = static_cast<PyCompareFunctionUserData&>(cfd);
     bool res = false;
     {
       PyGILStateHolder h;
@@ -528,7 +528,7 @@ private:
                                    const ROMol& mol2, unsigned int bond2,
                                    MCSCompareFunctionsData& cfd) {
     try {
-      PyCompareFunctionUserData& cfud = dynamic_cast<PyCompareFunctionUserData&>(cfd);
+      PyCompareFunctionData& cfud = dynamic_cast<PyCompareFunctionData&>(cfd);
     bool res = false;
     if ((p.RingMatchesRingOnly ||
          cfud.mcsParameters->AtomCompareParameters.RingMatchesRingOnly) &&
@@ -574,7 +574,7 @@ private:
   PyMCSBondCompare btwPyMCSBondCompare;
   MCSParameters btwParams;
   std::unique_ptr<MCSParameters> p;
-  std::unique_ptr<PyCompareFunctionUserData> cfud;
+  std::unique_ptr<PyCompareFunctionData> cfud;
   std::unique_ptr<PyProgressCallbackUserData> pcud;
 };
 
@@ -601,7 +601,6 @@ MCSResult *FindMCSWrapper(python::object mols, bool maximizeBonds,
   for (unsigned  int i = 0; i < nConformerIdxs; ++i) {
     conformerIdxsVect[i] = python::extract<unsigned int>(conformerIdxs[i]);
   }
-
   MCSParameters p;
   p.Threshold = threshold;
   p.MaximizeBonds = maximizeBonds;
@@ -701,6 +700,7 @@ BOOST_PYTHON_MODULE(rdFMCS) {
       .value("PermissiveRingFusion", RDKit::PermissiveRingFusion)
       .value("StrictRingFusion", RDKit::StrictRingFusion);
 
+
   std::string docString = "Find the MCS for a set of molecules";
   python::def(
       "FindMCS", RDKit::FindMCSWrapper,
@@ -711,14 +711,13 @@ BOOST_PYTHON_MODULE(rdFMCS) {
        python::arg("completeRingsOnly") = false,
        python::arg("matchChiralTag") = false,
        python::arg("maxDistance") = -1.0,
-       python::arg("conformerIdxs") = nullptr,
+       python::arg("conformerIdxs") = python::make_tuple(),
        python::arg("atomCompare") = RDKit::AtomCompareElements,
        python::arg("bondCompare") = RDKit::BondCompareOrder,
        python::arg("ringCompare") = RDKit::IgnoreRingFusion,
        python::arg("seedSmarts") = ""),
       python::return_value_policy<python::manage_new_object>(),
       docString.c_str());
-
   python::class_<RDKit::PyMCSParameters, boost::noncopyable>(
       "MCSParameters", "Parameters controlling how the MCS is constructed")
       .add_property("MaximizeBonds",
