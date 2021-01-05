@@ -38,11 +38,14 @@ typedef enum {
 } RingComparator;
 
 typedef std::map<const Atom*, std::map<const Atom*, bool>> MCSAtomDistanceCache;
-
+namespace FMCS {
+  class RingMatchTableSet;
+}
 struct RDKIT_FMCS_EXPORT MCSCompareFunctionsData {
-  MCSAtomDistanceCache AtomDistanceCache;
-  std::map<const ROMol*, const unsigned int> ConformerIdxMap;
-  void *RingMatchTables = nullptr; // avoid circular import? RingMatchTableSet.h imports SubstructMatchCustom.h, which imports FMCS.h
+  MCSAtomDistanceCache atomDistanceCache;
+  std::map<const ROMol*, unsigned int> conformerIdxMap;
+  FMCS::RingMatchTableSet *ringMatchTables = nullptr;
+  virtual ~MCSCompareFunctionsData(){} // Make it polymorphic
 };
 
 struct RDKIT_FMCS_EXPORT MCSAtomCompareParameters {

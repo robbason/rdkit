@@ -8,12 +8,14 @@
 //  of the RDKit source tree.
 //
 #include <RDGeneral/export.h>
+#pragma once
 #include <list>
 #include <algorithm>
 #include <cmath>
 #include "SubstructMatchCustom.h"
 
 namespace RDKit {
+
 namespace FMCS {
 class RDKIT_FMCS_EXPORT RingMatchTableSet {
   class RingMatchTable {

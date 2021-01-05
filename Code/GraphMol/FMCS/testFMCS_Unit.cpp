@@ -636,7 +636,6 @@ void testJnk1LigandsDistance(){
   }
   MCSParameters p;
   p.AtomTyper = MCSAtomCompareAnyHeavyAtom;
-  p.Verbose = true;
   p.AtomCompareParameters.MaxDistance = 1.5;
   checkMCS(mols, p, 22, 22);
   p.AtomCompareParameters.MaxDistance = -1.0;

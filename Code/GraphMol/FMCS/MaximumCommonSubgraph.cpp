@@ -84,7 +84,7 @@ void MaximumCommonSubgraph::init() {
 #endif
 
   }
-  CompareFunctionsData.RingMatchTables = nullptr;  // restore
+  CompareFunctionsData.ringMatchTables = nullptr;  // restore
 }
 
 void MaximumCommonSubgraph::buildTargetTopology(Target& target){
@@ -158,7 +158,7 @@ void MaximumCommonSubgraph::loadBondLabels(){
   for (size_t aj = 0; aj < nq; aj++) {
     const Bond* bond = QueryMolecule->getBondWithIdx(aj);
     unsigned ring = 0;
-    if (!CompareFunctionsData.RingMatchTables
+    if (!CompareFunctionsData.ringMatchTables
         && (Parameters.BondCompareParameters.CompleteRingsOnly ||
             Parameters.BondCompareParameters.RingMatchesRingOnly)) {
       ring = RingMatchTables.isQueryBondInRing(aj) ? 0 : 1;  // is bond in ring
@@ -217,7 +217,7 @@ void MaximumCommonSubgraph::loadMatchTables(const ROMol* targetMolecule, MatchTa
      Parameters.AtomCompareParameters.RingMatchesRingOnly) {
     if (QueryMolecule == targetMolecule){
       RingMatchTables.init(QueryMolecule);
-      CompareFunctionsData.RingMatchTables = &RingMatchTables;
+      CompareFunctionsData.ringMatchTables = &RingMatchTables;
     } else {
       RingMatchTables.addTargetBondRingsIndeces(targetMolecule);
     }
@@ -881,7 +881,7 @@ void MaximumCommonSubgraph::recordChosenConformerIdx(const ROMol *mol, std::vect
     conformerIdx = *(*conformerIterPtr);
     ++(*conformerIterPtr);
   }
-  //CompareFunctionsData.ConformerIdxMap[mol] = conformerIdx;
+  CompareFunctionsData.conformerIdxMap[mol] = conformerIdx;
 }
 
 MCSResult MaximumCommonSubgraph::find(const std::vector<ROMOL_SPTR>& src_mols) {
@@ -935,10 +935,7 @@ MCSResult MaximumCommonSubgraph::find(const std::vector<ROMOL_SPTR>& src_mols) {
   // molecule as a query
   std::stable_sort(Molecules.begin(), Molecules.end(), molPtr_NumBondLess);
 
-
-  for (size_t i = 0;
-       i < Molecules.size() - ThresholdCount;
-       ++i) {
+  for (size_t i = 0; i < Molecules.size() - ThresholdCount; ++i) {
      if(!evaluateQueryMolecule(i)){
        res.Canceled = true; // TODO: this isn't correct. what to return?
        break;
@@ -963,80 +960,7 @@ MCSResult MaximumCommonSubgraph::find(const std::vector<ROMOL_SPTR>& src_mols) {
 
 #ifdef VERBOSE_STATISTICS_ON
   if (Parameters.Verbose) {
-    unsigned itarget = 0;
-    for (std::vector<Target>::const_iterator tag = Targets.begin();
-         res.NumAtoms > 0 && tag != Targets.end(); tag++, itarget++) {
-      MatchVectType match;
-
-      bool target_matched =
-          SubstructMatch(*tag->Molecule, *res.QueryMol, match);
-      if (!target_matched) {
-        std::cout << "Target " << itarget + 1
-                  << (target_matched ? " matched " : " MISMATCHED ")
-                  << MolToSmiles(*tag->Molecule) << "\n";
-      }
-    }
-
-    std::cout << "STATISTICS:\n";
-    std::cout << "Total Growing Steps  = " << VerboseStatistics.TotalSteps
-              << ", MCS found on " << VerboseStatistics.MCSFoundStep << " step";
-    if (VerboseStatistics.MCSFoundTime - To > 0) {
-      printf(", for %.4lf seconds\n",
-             double(VerboseStatistics.MCSFoundTime - To) / 1000000.);
-    } else {
-      std::cout << ", for less than 1 second\n";
-    }
-    std::cout << "Initial   Seeds      = " << VerboseStatistics.InitialSeed
-              << ",  Mismatched " << VerboseStatistics.MismatchedInitialSeed
-              << "\n";
-    std::cout << "Inspected Seeds      = " << VerboseStatistics.Seed << "\n";
-    std::cout << "Rejected by BestSize = "
-              << VerboseStatistics.RemainingSizeRejected << "\n";
-    std::cout << "SingleBondExcluded   = "
-              << VerboseStatistics.SingleBondExcluded << "\n";
-#ifdef EXCLUDE_WRONG_COMPOSITION
-    std::cout << "Rejected by WrongComposition = "
-              << VerboseStatistics.WrongCompositionRejected << " [ "
-              << VerboseStatistics.WrongCompositionDetected << " Detected ]\n";
-#endif
-    std::cout << "MatchCheck Seeds     = " << VerboseStatistics.SeedCheck
-              << "\n";
-    std::cout  //<< "\n"
-        << "     MatchCalls = " << VerboseStatistics.MatchCall << "\n"
-        << "     MatchFound = " << VerboseStatistics.MatchCallTrue << "\n";
-    std::cout << " fastMatchCalls = " << VerboseStatistics.FastMatchCall << "\n"
-              << " fastMatchFound = " << VerboseStatistics.FastMatchCallTrue
-              << "\n";
-    std::cout << " slowMatchCalls = "
-              << VerboseStatistics.MatchCall -
-                     VerboseStatistics.FastMatchCallTrue
-              << "\n"
-              << " slowMatchFound = " << VerboseStatistics.SlowMatchCallTrue
-              << "\n";
-
-#ifdef VERBOSE_STATISTICS_FASTCALLS_ON
-    std::cout << "AtomFunctorCalls = " << VerboseStatistics.AtomFunctorCalls
-              << "\n";
-    std::cout << "BondCompareCalls = " << VerboseStatistics.BondCompareCalls
-              << "\n";
-#endif
-    std::cout << "  DupCacheFound = " << VerboseStatistics.DupCacheFound
-              << "   " << VerboseStatistics.DupCacheFoundMatch << " matched, "
-              << VerboseStatistics.DupCacheFound -
-                     VerboseStatistics.DupCacheFoundMatch
-              << " mismatched\n";
-#ifdef FAST_SUBSTRUCT_CACHE
-    std::cout << "HashCache size  = " << HashCache.keyssize() << " keys\n";
-    std::cout << "HashCache size  = " << HashCache.fullsize() << " entries\n";
-    std::cout << "FindHashInCache = " << VerboseStatistics.FindHashInCache
-              << "\n";
-    std::cout << "HashFoundInCache= " << VerboseStatistics.HashKeyFoundInCache
-              << "\n";
-    std::cout << "ExactMatchCalls = " << VerboseStatistics.ExactMatchCall
-              << "\n"
-              << "ExactMatchFound = " << VerboseStatistics.ExactMatchCallTrue
-              << "\n";
-#endif
+    printVerboseStatistics(res);
   }
 #endif
 
@@ -1444,6 +1368,83 @@ bool MaximumCommonSubgraph::matchIncrementalFast(Seed& seed, unsigned itarget) {
   }
 #endif
   return matched;
+}
+void MaximumCommonSubgraph::printVerboseStatistics(const MCSResult& res) const{
+    unsigned itarget = 0;
+    for (std::vector<Target>::const_iterator tag = Targets.begin();
+         res.NumAtoms > 0 && tag != Targets.end(); tag++, itarget++) {
+      MatchVectType match;
+
+      bool target_matched =
+          SubstructMatch(*tag->Molecule, *res.QueryMol, match);
+      if (!target_matched) {
+        std::cout << "Target " << itarget + 1
+                  << (target_matched ? " matched " : " MISMATCHED ")
+                  << MolToSmiles(*tag->Molecule) << "\n";
+      }
+    }
+
+    std::cout << "STATISTICS:\n";
+    std::cout << "Total Growing Steps  = " << VerboseStatistics.TotalSteps
+              << ", MCS found on " << VerboseStatistics.MCSFoundStep << " step";
+    if (VerboseStatistics.MCSFoundTime - To > 0) {
+      printf(", for %.4lf seconds\n",
+             double(VerboseStatistics.MCSFoundTime - To) / 1000000.);
+    } else {
+      std::cout << ", for less than 1 second\n";
+    }
+    std::cout << "Initial   Seeds      = " << VerboseStatistics.InitialSeed
+              << ",  Mismatched " << VerboseStatistics.MismatchedInitialSeed
+              << "\n";
+    std::cout << "Inspected Seeds      = " << VerboseStatistics.Seed << "\n";
+    std::cout << "Rejected by BestSize = "
+              << VerboseStatistics.RemainingSizeRejected << "\n";
+    std::cout << "SingleBondExcluded   = "
+              << VerboseStatistics.SingleBondExcluded << "\n";
+#ifdef EXCLUDE_WRONG_COMPOSITION
+    std::cout << "Rejected by WrongComposition = "
+              << VerboseStatistics.WrongCompositionRejected << " [ "
+              << VerboseStatistics.WrongCompositionDetected << " Detected ]\n";
+#endif
+    std::cout << "MatchCheck Seeds     = " << VerboseStatistics.SeedCheck
+              << "\n";
+    std::cout  //<< "\n"
+        << "     MatchCalls = " << VerboseStatistics.MatchCall << "\n"
+        << "     MatchFound = " << VerboseStatistics.MatchCallTrue << "\n";
+    std::cout << " fastMatchCalls = " << VerboseStatistics.FastMatchCall << "\n"
+              << " fastMatchFound = " << VerboseStatistics.FastMatchCallTrue
+              << "\n";
+    std::cout << " slowMatchCalls = "
+              << VerboseStatistics.MatchCall -
+                     VerboseStatistics.FastMatchCallTrue
+              << "\n"
+              << " slowMatchFound = " << VerboseStatistics.SlowMatchCallTrue
+              << "\n";
+
+#ifdef VERBOSE_STATISTICS_FASTCALLS_ON
+    std::cout << "AtomFunctorCalls = " << VerboseStatistics.AtomFunctorCalls
+              << "\n";
+    std::cout << "BondCompareCalls = " << VerboseStatistics.BondCompareCalls
+              << "\n";
+#endif
+    std::cout << "  DupCacheFound = " << VerboseStatistics.DupCacheFound
+              << "   " << VerboseStatistics.DupCacheFoundMatch << " matched, "
+              << VerboseStatistics.DupCacheFound -
+                     VerboseStatistics.DupCacheFoundMatch
+              << " mismatched\n";
+#ifdef FAST_SUBSTRUCT_CACHE
+    std::cout << "HashCache size  = " << HashCache.keyssize() << " keys\n";
+    std::cout << "HashCache size  = " << HashCache.fullsize() << " entries\n";
+    std::cout << "FindHashInCache = " << VerboseStatistics.FindHashInCache
+              << "\n";
+    std::cout << "HashFoundInCache= " << VerboseStatistics.HashKeyFoundInCache
+              << "\n";
+    std::cout << "ExactMatchCalls = " << VerboseStatistics.ExactMatchCall
+              << "\n"
+              << "ExactMatchFound = " << VerboseStatistics.ExactMatchCallTrue
+              << "\n";
+#endif
+
 }
 }  // namespace FMCS
 }  // namespace RDKit

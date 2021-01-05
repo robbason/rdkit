@@ -243,8 +243,8 @@ bool checkAtomDistance(const MCSAtomCompareParameters& p,
                        MCSCompareFunctionsData& cfd){
   const float maxDistance = p.MaxDistance;
   if (maxDistance > 0){
-    unsigned int confId1 = cfd.ConformerIdxMap[&mol1];
-    unsigned int confId2 = cfd.ConformerIdxMap[&mol2];
+    unsigned int confId1 = cfd.conformerIdxMap[&mol1];
+    unsigned int confId2 = cfd.conformerIdxMap[&mol2];
     // If there is no setting for conformer idxs, default to 0
     if (mol1.getNumConformers() <= confId1 ||
         mol2.getNumConformers() <= confId2){
@@ -258,8 +258,8 @@ bool checkAtomDistance(const MCSAtomCompareParameters& p,
     MCSAtomDistanceCache::iterator cacheIt;
     std::map<const Atom*, bool>::iterator innerMapIt;
 
-    cacheIt = cfd.AtomDistanceCache.find(mapAtmFirst);
-    if (cacheIt != cfd.AtomDistanceCache.end()){
+    cacheIt = cfd.atomDistanceCache.find(mapAtmFirst);
+    if (cacheIt != cfd.atomDistanceCache.end()){
       innerMapIt = cacheIt->second.find(mapAtmSecond);
       if (innerMapIt != cacheIt->second.end()){
         return innerMapIt->second;
@@ -271,20 +271,8 @@ bool checkAtomDistance(const MCSAtomCompareParameters& p,
     const RDGeom::Point3D &pos1 = ci1.getAtomPos(atom1);
     const RDGeom::Point3D &pos2 = ci2.getAtomPos(atom2);
     bool withinRange = (pos1 - pos2).length() <= maxDistance;
-    cfd.AtomDistanceCache[mapAtmFirst][mapAtmSecond] = withinRange;
+    cfd.atomDistanceCache[mapAtmFirst][mapAtmSecond] = withinRange;
     return withinRange;
-    /*ROMol::ConstConformerIterator ci1;
-    for (ci1 = mol1.beginConformers(); ci1 != mol1.endConformers(); ci1++) {
-      const RDGeom::Point3D &pos1 = (*ci1)->getAtomPos(atom1);
-      ROMol::ConstConformerIterator ci2;
-      for (ci2 = mol2.beginConformers(); ci2 != mol2.endConformers(); ci2++) {
-        const RDGeom::Point3D &pos2 = (*ci2)->getAtomPos(atom2);
-        if ((pos1 - pos2).length() <= maxDistance){
-          return true;
-        }
-      }
-    }
-    return false;*/
   }
   return true;
 }
@@ -455,7 +443,7 @@ bool MCSBondCompareAny(const MCSBondCompareParameters& p, const ROMol& mol1,
     return false;
   }
   if (p.RingMatchesRingOnly) {
-    return checkBondRingMatch(p, mol1, bond1, mol2, bond2, cfd.RingMatchTables);
+    return checkBondRingMatch(p, mol1, bond1, mol2, bond2, cfd.ringMatchTables);
   }
   return true;
 }
@@ -473,7 +461,7 @@ bool MCSBondCompareOrder(const MCSBondCompareParameters& p, const ROMol& mol1,
       return false;
     }
     if (p.RingMatchesRingOnly) {
-      return checkBondRingMatch(p, mol1, bond1, mol2, bond2, cfd.RingMatchTables);
+      return checkBondRingMatch(p, mol1, bond1, mol2, bond2, cfd.ringMatchTables);
     }
     return true;
   }
@@ -494,7 +482,7 @@ bool MCSBondCompareOrderExact(const MCSBondCompareParameters& p,
       return false;
     }
     if (p.RingMatchesRingOnly) {
-      return checkBondRingMatch(p, mol1, bond1, mol2, bond2, cfd.RingMatchTables);
+      return checkBondRingMatch(p, mol1, bond1, mol2, bond2, cfd.ringMatchTables);
     }
     return true;
   }
