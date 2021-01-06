@@ -39,14 +39,14 @@ typedef enum {
 
 typedef std::map<const Atom*, std::map<const Atom*, bool>> MCSAtomDistanceCache;
 namespace FMCS {
-  class RingMatchTableSet;
+class RingMatchTableSet;
 }
 struct RDKIT_FMCS_EXPORT MCSCompareFunctionsData {
   MCSAtomDistanceCache atomDistanceCache;
   std::map<const ROMol*, unsigned int> conformerIdxMap;
-  FMCS::RingMatchTableSet *ringMatchTables = nullptr;
-  virtual ~MCSCompareFunctionsData(){} // Make it polymorphic
-  virtual void clear(){
+  FMCS::RingMatchTableSet* ringMatchTables = nullptr;
+  virtual ~MCSCompareFunctionsData() {}  // Make it polymorphic
+  virtual void clear() {
     atomDistanceCache.clear();
     conformerIdxMap.clear();
     ringMatchTables = nullptr;
@@ -118,10 +118,10 @@ RDKIT_FMCS_EXPORT bool MCSAtomCompareIsotopes(
 RDKIT_FMCS_EXPORT bool checkBondStereo(const MCSBondCompareParameters& p,
                                        const ROMol& mol1, unsigned int bond1,
                                        const ROMol& mol2, unsigned int bond2);
-RDKIT_FMCS_EXPORT bool checkBondRingMatch(const MCSBondCompareParameters& p,
-                                          const ROMol& mol1, unsigned int bond1,
-                                          const ROMol& mol2, unsigned int bond2,
-                                          FMCS::RingMatchTableSet* ringMatchTables);
+RDKIT_FMCS_EXPORT bool checkBondRingMatch(
+    const MCSBondCompareParameters& p, const ROMol& mol1, unsigned int bond1,
+    const ROMol& mol2, unsigned int bond2,
+    FMCS::RingMatchTableSet* ringMatchTables);
 
 RDKIT_FMCS_EXPORT bool MCSBondCompareAny(const MCSBondCompareParameters& p,
                                          const ROMol& mol1, unsigned int bond1,
@@ -204,7 +204,8 @@ findMCS(const std::vector<ROMOL_SPTR>& mols, bool maximizeBonds,
         double threshold = 1.0, unsigned timeout = 3600, bool verbose = false,
         bool matchValences = false, bool ringMatchesRingOnly = false,
         bool completeRingsOnly = false, bool matchChiralTag = false,
-        float maxDistance = -1.0, const std::vector<unsigned int> conformerIdxs = {},
+        float maxDistance = -1.0,
+        const std::vector<unsigned int> conformerIdxs = {},
         AtomComparator atomComp = AtomCompareElements,
         BondComparator bondComp = BondCompareOrder);
 

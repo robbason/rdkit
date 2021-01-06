@@ -309,7 +309,7 @@ struct WeightedBond {
 };
 
 void MaximumCommonSubgraph::loadInitialSeedParameter(
-    std::vector<bool> excludedBonds){
+    std::vector<bool> excludedBonds) {
   std::unique_ptr<const ROMol> initialSeedMolecule(
       (const ROMol*)SmartsToMol(Parameters.InitialSeed));
   // make a set of of seed as indices and pointers to current query
@@ -318,7 +318,7 @@ void MaximumCommonSubgraph::loadInitialSeedParameter(
   SubstructMatch(*QueryMolecule, *initialSeedMolecule, matching_substructs);
   // loop throw all fragments of Query matched to initial seed
   for (std::vector<MatchVectType>::const_iterator ms =
-         matching_substructs.begin();
+           matching_substructs.begin();
        ms != matching_substructs.end(); ms++) {
     Seed seed;
     seed.ExcludedBonds = excludedBonds;
@@ -346,10 +346,9 @@ void MaximumCommonSubgraph::loadInitialSeedParameter(
            beg != end; beg++) {
         const Bond& initialBond = *((*initialSeedMolecule)[*beg]);
         unsigned qai1 =
-          initialSeedToQueryAtom.find(initialBond.getBeginAtomIdx())
-          ->second;
+            initialSeedToQueryAtom.find(initialBond.getBeginAtomIdx())->second;
         unsigned qai2 =
-          initialSeedToQueryAtom.find(initialBond.getEndAtomIdx())->second;
+            initialSeedToQueryAtom.find(initialBond.getEndAtomIdx())->second;
 
         const Bond* b = QueryMolecule->getBondBetweenAtoms(qai1, qai2);
         if (!seed.ExcludedBonds[b->getIdx()]) {
@@ -944,10 +943,10 @@ MCSResult MaximumCommonSubgraph::find(const std::vector<ROMOL_SPTR>& src_mols) {
 
   for (size_t i = 0; i < Molecules.size() - ThresholdCount; ++i) {
     auto seedsAndCanceled = evaluateQueryMolecule(i);
-    if(seedsAndCanceled.second) {
+    if (seedsAndCanceled.second) {
       res.Canceled = true;
     }
-    if(seedsAndCanceled.first || seedsAndCanceled.second){
+    if (seedsAndCanceled.first || seedsAndCanceled.second) {
       break;
     }
   }
