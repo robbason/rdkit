@@ -46,6 +46,11 @@ struct RDKIT_FMCS_EXPORT MCSCompareFunctionsData {
   std::map<const ROMol*, unsigned int> conformerIdxMap;
   FMCS::RingMatchTableSet *ringMatchTables = nullptr;
   virtual ~MCSCompareFunctionsData(){} // Make it polymorphic
+  virtual void clear(){
+    atomDistanceCache.clear();
+    conformerIdxMap.clear();
+    ringMatchTables = nullptr;
+  }
 };
 
 struct RDKIT_FMCS_EXPORT MCSAtomCompareParameters {
@@ -92,10 +97,9 @@ RDKIT_FMCS_EXPORT bool checkAtomChirality(const MCSAtomCompareParameters& p,
                                           const ROMol& mol2,
                                           unsigned int atom2);
 RDKIT_FMCS_EXPORT bool checkAtomDistance(const MCSAtomCompareParameters& p,
-                                          const ROMol& mol1, unsigned int atom1,
-                                          const ROMol& mol2,
-                                          unsigned int atom2);
-
+                                         const ROMol& mol1, unsigned int atom1,
+                                         const ROMol& mol2, unsigned int atom2,
+                                         MCSCompareFunctionsData& cfd);
 RDKIT_FMCS_EXPORT bool MCSAtomCompareAny(const MCSAtomCompareParameters& p,
                                          const ROMol& mol1, unsigned int atom1,
                                          const ROMol& mol2, unsigned int atom2,
@@ -117,7 +121,7 @@ RDKIT_FMCS_EXPORT bool checkBondStereo(const MCSBondCompareParameters& p,
 RDKIT_FMCS_EXPORT bool checkBondRingMatch(const MCSBondCompareParameters& p,
                                           const ROMol& mol1, unsigned int bond1,
                                           const ROMol& mol2, unsigned int bond2,
-                                          void* v_ringMatchMatrixSet);
+                                          FMCS::RingMatchTableSet* ringMatchTables);
 
 RDKIT_FMCS_EXPORT bool MCSBondCompareAny(const MCSBondCompareParameters& p,
                                          const ROMol& mol1, unsigned int bond1,

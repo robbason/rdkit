@@ -544,12 +544,9 @@ ROMol *embed3DFromSmiles(const char* smiString, const ROMol *scaffoldNoHs,
   for (std::vector<MatchVectType>::const_iterator it = matches.begin();
        it != matches.end(); ++it) {
     MatchVectType matchVect = *it;
-    for (unsigned int i = 0; i < matchVect.size(); i++){
-      unsigned int scaffoldIdx = matchVect[i].first;
-      unsigned int molIdx = matchVect[i].second;
-      //if(molIdx >= mol->getNumAtoms()){
-      //std::cerr << "looking for " << molIdx <<","<<scaffoldIdx << " and have " << mol->getNumAtoms() << std::endl;
-        //}
+    for (unsigned i = 0; i < matchVect.size(); i++){
+      unsigned scaffoldIdx = matchVect[i].first;
+      unsigned molIdx = matchVect[i].second;
       coordMap[molIdx] = scaffoldConf.getAtomPos(scaffoldIdx);
     }
   }
@@ -572,7 +569,7 @@ ROMol *embed3DFromSmiles(const char* smiString, const ROMol *scaffoldNoHs,
 }
 #define MCSTESTREPEATS 0
 void checkMCS(const std::vector<ROMOL_SPTR> mols, const MCSParameters p,
-              unsigned int expectedAtoms, unsigned int expectedBonds){
+              unsigned expectedAtoms, unsigned expectedBonds){
   t0 = nanoClock();
   MCSResult res = findMCS(mols, &p);
   std::cout << "Exact Atom MCS: " << res.SmartsString << " "
@@ -601,7 +598,7 @@ ROMol *scaffoldFromSmiles(const char *scaffoldSmiles, const int seed){
   TEST_ASSERT(cid > -1);
   return MolOps::removeHs(*scaffold);
 }
-
+/* TODO: best practice on where to put a test data file into the repo? */
 void testJnk1LigandsDistance(){
   BOOST_LOG(rdInfoLog) << "-------------------------------------" << std::endl;
   BOOST_LOG(rdInfoLog) << "Testing FMCS testJnk1LigandsDistance" << std::endl;
@@ -666,7 +663,6 @@ void testMaxDistanceFlip(){
   int otherIndex = otherCarbon->getIdx();
   mol2->addBond(newIndex, otherIndex, Bond::BondType::SINGLE);
   mols.emplace_back(mol2);
-  //std::cout << "Mol2 SMILES: " << MolToSmiles(*mol2) << std::endl;
   MCSParameters p;
   p.Verbose = true;
   // Should match the flipped N if we don't filter on max distance
@@ -702,7 +698,6 @@ void testMaxDistance() {
   // Now let's allow the non-ring O and N to match
   p.AtomTyper = MCSAtomCompareAnyHeavyAtom;
   checkMCS(mols, p, 17, 17);
-
   BOOST_LOG(rdInfoLog) << "\tdone" << std::endl;
 }
 

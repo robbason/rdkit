@@ -417,18 +417,17 @@ bool checkBondStereo(const MCSBondCompareParameters& p,
 }
 
 bool checkBondRingMatch(const MCSBondCompareParameters&, const ROMol&,
-                               unsigned int bond1, const ROMol& mol2,
-                               unsigned int bond2, void* v_ringMatchMatrixSet) {
-  if (!v_ringMatchMatrixSet) {
-    throw "v_ringMatchMatrixSet is NULL";  // never
+                        unsigned int bond1, const ROMol& mol2,
+                        unsigned int bond2,
+                        FMCS::RingMatchTableSet* ringMatchTables) {
+  if (!ringMatchTables) {
+    throw "ringMatchTables is NULL";  // never
   }
-  auto* ringMatchMatrixSet =
-      static_cast<FMCS::RingMatchTableSet*>(v_ringMatchMatrixSet);
 
   const std::vector<size_t>& ringsIdx1 =
-      ringMatchMatrixSet->getQueryBondRings(bond1);  // indices of rings
+      ringMatchTables->getQueryBondRings(bond1);  // indices of rings
   const std::vector<size_t>& ringsIdx2 =
-      ringMatchMatrixSet->getTargetBondRings(&mol2, bond2);  // indices of rings
+      ringMatchTables->getTargetBondRings(&mol2, bond2);  // indices of rings
   bool bond1inRing = !ringsIdx1.empty();
   bool bond2inRing = !ringsIdx2.empty();
 

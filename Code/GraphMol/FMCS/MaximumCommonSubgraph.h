@@ -92,16 +92,18 @@ class RDKIT_FMCS_EXPORT MaximumCommonSubgraph {
   void clear() {
     Targets.clear();
     Molecules.clear();
-    CompareFunctionsData.conformerIdxMap.clear();
+    CompareFunctionsData.clear();
     To = nanoClock();
   }
-  bool evaluateQueryMolecule(size_t i);
+  std::pair<bool, bool> evaluateQueryMolecule(size_t i);
   void init();
   void loadMatchTables(const ROMol* targetMolecule, MatchTable& atomMatchTable, MatchTable& bondMatchTable);
   void loadBondLabels();
   void buildTargetTopology(Target& target);
   void printVerboseStatistics(const MCSResult& res) const;
   void makeInitialSeeds();
+  void loadInitialSeedParameter(std::vector<bool> excludedBonds);
+  void loadSeedsFromQueryBonds(std::vector<bool> excludedBonds);
   bool createSeedFromMCS(size_t newQueryTarget, Seed& seed);
   bool growSeeds();  // returns false if canceled
   std::pair<std::string, RWMol*> generateResultSMARTSAndQueryMol(
