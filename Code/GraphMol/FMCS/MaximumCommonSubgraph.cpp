@@ -30,7 +30,9 @@ struct LabelDefinition {
   LabelDefinition(unsigned i, unsigned value) : ItemIndex(i), Value(value) {}
 };
 
-MaximumCommonSubgraph::MaximumCommonSubgraph(const MCSParameters* params) {
+MaximumCommonSubgraph::MaximumCommonSubgraph(const MCSParameters* params,
+                                             void* userData) {
+  CompareFunctionsData.userData = userData;
   Parameters = (nullptr != params ? *params : MCSParameters());
   if (!Parameters.ProgressCallback) {
     Parameters.ProgressCallback = MCSProgressCallbackTimeout;
@@ -309,7 +311,7 @@ struct WeightedBond {
 };
 
 void MaximumCommonSubgraph::loadInitialSeedParameter(
-    std::vector<bool> excludedBonds) {
+    std::vector<bool>& excludedBonds) {
   std::unique_ptr<const ROMol> initialSeedMolecule(
       (const ROMol*)SmartsToMol(Parameters.InitialSeed));
   // make a set of of seed as indices and pointers to current query
@@ -366,7 +368,7 @@ void MaximumCommonSubgraph::loadInitialSeedParameter(
 }
 
 void MaximumCommonSubgraph::loadSeedsFromQueryBonds(
-    std::vector<bool> excludedBonds) {
+    std::vector<bool>& excludedBonds) {
   // R1 additional performance OPTIMISATION
   // if(Parameters.BondCompareParameters.CompleteRingsOnly)
   // disable all mismatched rings, and do not generate initial seeds
@@ -879,7 +881,7 @@ bool MaximumCommonSubgraph::createSeedFromMCS(size_t newQueryTarget,
 
 void MaximumCommonSubgraph::recordChosenConformerIdx(
     const ROMol* mol,
-    std::vector<unsigned int>::const_iterator* conformerIterPtr) {
+    std::vector<unsigned>::const_iterator* conformerIterPtr) {
   int conformerIdx = 0;
   if (Parameters.AtomCompareParameters.ConformerIdxs.size() > 0) {
     if (*conformerIterPtr ==

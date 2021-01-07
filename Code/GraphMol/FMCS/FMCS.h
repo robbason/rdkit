@@ -43,8 +43,9 @@ class RingMatchTableSet;
 }
 struct RDKIT_FMCS_EXPORT MCSCompareFunctionsData {
   MCSAtomDistanceCache atomDistanceCache;
-  std::map<const ROMol*, unsigned int> conformerIdxMap;
+  std::map<const ROMol*, unsigned> conformerIdxMap;
   FMCS::RingMatchTableSet* ringMatchTables = nullptr;
+  void* userData = nullptr;
   virtual ~MCSCompareFunctionsData() {}  // Make it polymorphic
   virtual void clear() {
     atomDistanceCache.clear();
@@ -60,7 +61,7 @@ struct RDKIT_FMCS_EXPORT MCSAtomCompareParameters {
   bool RingMatchesRingOnly = false;
   bool MatchIsotope = false;
   float MaxDistance = -1.0;
-  std::vector<unsigned int> ConformerIdxs;
+  std::vector<unsigned> ConformerIdxs;
 };
 
 struct RDKIT_FMCS_EXPORT MCSBondCompareParameters {
@@ -189,15 +190,17 @@ RDKIT_FMCS_EXPORT void parseMCSParametersJSON(const char* json,
                                               MCSParameters* params);
 
 RDKIT_FMCS_EXPORT MCSResult findMCS(const std::vector<ROMOL_SPTR>& mols,
-                                    const MCSParameters* params = nullptr);
+                                    const MCSParameters* params = nullptr,
+                                    void* userData = nullptr);
 RDKIT_FMCS_EXPORT MCSResult findMCS_P(const std::vector<ROMOL_SPTR>& mols,
-                                      const char* params_json);
+                                      const char* params_json,
+                                      void* userData = nullptr);
 
 RDKIT_FMCS_EXPORT MCSResult findMCS(
     const std::vector<ROMOL_SPTR>& mols, bool maximizeBonds, double threshold,
     unsigned timeout, bool verbose, bool matchValences,
     bool ringMatchesRingOnly, bool completeRingsOnly, bool matchChiralTag,
-    float maxDistance, const std::vector<unsigned int> conformerIdxs,
+    float maxDistance, const std::vector<unsigned> conformerIdxs,
     AtomComparator atomComp, BondComparator bondComp, RingComparator ringComp);
 RDKIT_FMCS_EXPORT MCSResult
 findMCS(const std::vector<ROMOL_SPTR>& mols, bool maximizeBonds,
@@ -205,7 +208,7 @@ findMCS(const std::vector<ROMOL_SPTR>& mols, bool maximizeBonds,
         bool matchValences = false, bool ringMatchesRingOnly = false,
         bool completeRingsOnly = false, bool matchChiralTag = false,
         float maxDistance = -1.0,
-        const std::vector<unsigned int> conformerIdxs = {},
+        const std::vector<unsigned> conformerIdxs = {},
         AtomComparator atomComp = AtomCompareElements,
         BondComparator bondComp = BondCompareOrder);
 

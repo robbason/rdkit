@@ -1,6 +1,6 @@
 #set(CMAKE_BUILD_TYPE Debug)
 rdkit_library(FMCS
-              FMCS.cpp Seed.cpp MaximumCommonSubgraph.cpp SubstructMatchCustom.cpp RingMatchTableSet.cpp
+              FMCS.cpp Seed.cpp MaximumCommonSubgraph.cpp SubstructMatchCustom.cpp
               LINK_LIBRARIES Depictor SmilesParse FileParsers ChemTransforms SubstructMatch GraphMol )
 target_compile_definitions(FMCS PRIVATE RDKIT_FMCS_BUILD)
 

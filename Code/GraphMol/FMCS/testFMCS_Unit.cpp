@@ -557,7 +557,7 @@ ROMol *embed3DFromSmiles(const char* smiString, const ROMol *scaffoldNoHs,
   params.randomSeed = seed;
   params.verbose = true;
   cid = RDKit::DGeomHelpers::EmbedMolecule(*mol, params);
-  if (cid < 0){
+  if (cid <= -1){
     std::cerr << "cid was " << cid << " trying to embed: " <<std::endl;
     for (std::map<int, RDGeom::Point3D>::const_iterator i=coordMap.begin();
          i!=coordMap.end();i++){
@@ -567,13 +567,16 @@ ROMol *embed3DFromSmiles(const char* smiString, const ROMol *scaffoldNoHs,
   TEST_ASSERT(cid > -1);
   return mol;
 }
-#define MCSTESTREPEATS 0
-void checkMCS(const std::vector<ROMOL_SPTR> mols, const MCSParameters p,
+#define MCSTESTREPEATS 0 // To run MCS repeatedly to measure performance
+MCSResult checkMCS(const std::vector<ROMOL_SPTR> mols, const MCSParameters p,
               unsigned expectedAtoms, unsigned expectedBonds){
   t0 = nanoClock();
   MCSResult res = findMCS(mols, &p);
-  std::cout << "Exact Atom MCS: " << res.SmartsString << " "
-            << res.NumAtoms << " atoms, " << res.NumBonds << " bonds"
+  //std::shared_ptr<RWMol>
+  ROMol *mcsMol = SmartsToMol(res.SmartsString);
+  ROMol *cleanMCSMol = SmilesToMol(MolToSmiles(*mcsMol));
+  std::cout << "MCS: " << res.SmartsString << " " << MolToSmiles(*cleanMCSMol)
+            << " " << res.NumAtoms << " atoms, " << res.NumBonds << " bonds"
             << std::endl;
 #ifdef MCSTESTREPEATS
   for (int i=0; i<MCSTESTREPEATS; i++){
@@ -587,7 +590,7 @@ void checkMCS(const std::vector<ROMOL_SPTR> mols, const MCSParameters p,
               << std::endl;
     TEST_ASSERT(res.NumAtoms == expectedAtoms && res.NumBonds == expectedBonds);
   }
-
+  return res;
 }
 
 ROMol *scaffoldFromSmiles(const char *scaffoldSmiles, const int seed){
@@ -621,20 +624,56 @@ void testJnk1LigandsDistance(){
   while (!suppl->atEnd()) {
     ROMol* m = suppl->next();
     if (m) {
-      if(m->getProp<std::string>("_Name") == "18629-1"){
+      if(m->getProp<std::string>("_Name") == "17124-1"){
         m1 = m;
-      } else if(m->getProp<std::string>("_Name") == "18634-1"){
+      } else if(m->getProp<std::string>("_Name") == "18629-1"){
         m2 = m;
       } else {
-        break;
+        ROMOL_SPTR cleanupMol(m); // don't leak memory
       }
-      mols.emplace_back(m);
     }
   }
+  mols.emplace_back(m1);
+  mols.emplace_back(m2);
+
   MCSParameters p;
   p.AtomTyper = MCSAtomCompareAnyHeavyAtom;
-  p.AtomCompareParameters.MaxDistance = 1.5;
-  checkMCS(mols, p, 22, 22);
+  p.BondTyper = MCSBondCompareOrderExact;
+  p.AtomCompareParameters.MaxDistance = 3.0;
+  MCSResult res = checkMCS(mols, p, 22, 23);
+
+  SubstructMatchParameters smp;
+  smp.useChirality = true;
+  smp.uniquify = false;
+  std::vector<MatchVectType> mvt1 = SubstructMatch(*m1, *(res.QueryMol), smp);
+  std::vector<MatchVectType> mvt2 = SubstructMatch(*m2, *(res.QueryMol), smp);
+  if (mvt1.size() != 2 || mvt2.size() != 2){
+    std::cerr << "jnk match atoms expected 2, 2: " << mvt1.size() << "," <<
+      mvt2.size() << std::endl;
+    TEST_ASSERT(mvt1.size() == 2);
+    TEST_ASSERT(mvt2.size() == 2);
+  }
+
+  std::list<int> forbidden1 = {18, 19, 25, 26};
+  std::list<int> forbidden2 = {19};
+  for (auto& matchVect: mvt1){
+    for (auto& matchPair: matchVect){
+      auto isPresent = std::find(forbidden1.begin(), forbidden1.end(), matchPair.second);
+      if (isPresent != forbidden1.end()){
+        std::cerr << "mol1 index forbidden: " << matchPair.second << std::endl;
+        TEST_ASSERT(isPresent == forbidden1.end());
+      }
+    }
+  }
+  for (auto& matchVect: mvt2){
+    for (auto& matchPair: matchVect){
+      auto isPresent = std::find(forbidden2.begin(), forbidden2.end(), matchPair.second);
+      if (isPresent != forbidden2.end()){
+        std::cerr << "mol2 index forbidden: " << matchPair.second << std::endl;
+        TEST_ASSERT(isPresent == forbidden2.end());
+      }
+    }
+  }
   p.AtomCompareParameters.MaxDistance = -1.0;
   // Should match the flipped N if we don't filter on max distance
   checkMCS(mols, p, 23, 24);
@@ -664,7 +703,7 @@ void testMaxDistanceFlip(){
   mol2->addBond(newIndex, otherIndex, Bond::BondType::SINGLE);
   mols.emplace_back(mol2);
   MCSParameters p;
-  p.Verbose = true;
+  //p.Verbose = true;
   // Should match the flipped N if we don't filter on max distance
   checkMCS(mols, p, 9, 9);
   p.AtomCompareParameters.MaxDistance = 1.0;
@@ -692,7 +731,7 @@ void testMaxDistance() {
   }
 
   MCSParameters p;
-  p.Verbose = true;
+  //p.Verbose = true;
   p.AtomCompareParameters.MaxDistance = 1.0;
   checkMCS(mols, p, 14, 14);
   // Now let's allow the non-ring O and N to match
