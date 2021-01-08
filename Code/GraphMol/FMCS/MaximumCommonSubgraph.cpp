@@ -86,7 +86,6 @@ void MaximumCommonSubgraph::init() {
                     target.BondMatchTable);
 #endif
   }
-  CompareFunctionsData.ringMatchTables = nullptr;  // restore
 }
 
 void MaximumCommonSubgraph::buildTargetTopology(Target& target) {
@@ -880,8 +879,7 @@ bool MaximumCommonSubgraph::createSeedFromMCS(size_t newQueryTarget,
 }
 
 void MaximumCommonSubgraph::recordChosenConformerIdx(
-    const ROMol* mol,
-    std::vector<unsigned>::const_iterator* conformerIterPtr) {
+    const ROMol* mol, std::vector<unsigned>::const_iterator* conformerIterPtr) {
   int conformerIdx = 0;
   if (Parameters.AtomCompareParameters.ConformerIdxs.size() > 0) {
     if (*conformerIterPtr ==
