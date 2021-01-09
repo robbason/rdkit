@@ -60,6 +60,7 @@ class RDKIT_FMCS_EXPORT MaximumCommonSubgraph {
   MatchTable QueryAtomMatchTable;
   MatchTable QueryBondMatchTable;
   RingMatchTableSet RingMatchTables;
+  CompareFunctionsData FunctionsData;
 #endif
 #ifdef DUP_SUBSTRUCT_CACHE
   DuplicatedSeedCache DuplicateCache;

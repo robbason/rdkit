@@ -46,6 +46,7 @@ MaximumCommonSubgraph::MaximumCommonSubgraph(const MCSParameters* params) {
     }
   }
   To = nanoClock();
+  FunctionsData.ringMatchTables = &RingMatchTables;
 }
 
 static bool molPtr_NumBondLess(
@@ -69,17 +70,17 @@ void MaximumCommonSubgraph::init() {
   DuplicateCache.clear();
 #endif
   void* userData = Parameters.CompareFunctionsUserData;
-
+  if (!userData) { // predefined functor - compute RingMatchTable for all targets
+    Parameters.CompareFunctionsUserData = &FunctionsData;
+  }
   size_t nq = 0;
 #ifdef FAST_SUBSTRUCT_CACHE
   // fill out RingMatchTables to check cache Hash collision by checking match a
   // part of Query to Query
-  if (!userData  // predefined functor - compute RingMatchTable for all targets
-      && (Parameters.BondCompareParameters.CompleteRingsOnly ||
-          Parameters.BondCompareParameters.RingMatchesRingOnly ||
-          Parameters.AtomCompareParameters.RingMatchesRingOnly)) {
+  if (Parameters.BondCompareParameters.CompleteRingsOnly ||
+      Parameters.BondCompareParameters.RingMatchesRingOnly ||
+      Parameters.AtomCompareParameters.RingMatchesRingOnly) {
     RingMatchTables.init(QueryMolecule);
-    Parameters.CompareFunctionsUserData = &RingMatchTables;
     RingMatchTables.computeRingMatchTable(QueryMolecule, QueryMolecule,
                                           Parameters);
   }

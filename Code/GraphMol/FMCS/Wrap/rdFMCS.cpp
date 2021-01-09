@@ -557,6 +557,7 @@ MCSResult *FindMCSWrapper(python::object mols, bool maximizeBonds,
                           double threshold, unsigned timeout, bool verbose,
                           bool matchValences, bool ringMatchesRingOnly,
                           bool completeRingsOnly, bool matchChiralTag,
+			  float maxDistance, python::object conformerIdxs,
                           AtomComparator atomComp, BondComparator bondComp,
                           RingComparator ringComp, std::string seedSmarts) {
   std::vector<ROMOL_SPTR> ms;
@@ -568,6 +569,14 @@ MCSResult *FindMCSWrapper(python::object mols, bool maximizeBonds,
     }
     ms[i] = python::extract<ROMOL_SPTR>(mols[i]);
   }
+  std::vector<unsigned> conformerIdxsVect;
+  unsigned nConformerIdxs =
+      python::extract<unsigned>(conformerIdxs.attr("__len__")());
+  conformerIdxsVect.resize(nConformerIdxs);
+  for (unsigned i = 0; i < nConformerIdxs; ++i) {
+    conformerIdxsVect[i] = python::extract<unsigned>(conformerIdxs[i]);
+  }
+
   MCSParameters p;
   p.Threshold = threshold;
   p.MaximizeBonds = maximizeBonds;
@@ -576,6 +585,9 @@ MCSResult *FindMCSWrapper(python::object mols, bool maximizeBonds,
   p.InitialSeed = seedSmarts;
   p.AtomCompareParameters.MatchValences = matchValences;
   p.AtomCompareParameters.MatchChiralTag = matchChiralTag;
+  p.AtomCompareParameters.MaxDistance = maxDistance;
+  p.AtomCompareParameters.ConformerIdxs = conformerIdxsVect;
+
   p.AtomCompareParameters.RingMatchesRingOnly = ringMatchesRingOnly;
   p.setMCSAtomTyperFromEnum(atomComp);
   p.setMCSBondTyperFromEnum(bondComp);
@@ -674,7 +686,8 @@ BOOST_PYTHON_MODULE(rdFMCS) {
        python::arg("verbose") = false, python::arg("matchValences") = false,
        python::arg("ringMatchesRingOnly") = false,
        python::arg("completeRingsOnly") = false,
-       python::arg("matchChiralTag") = false,
+       python::arg("matchChiralTag") = false, python::arg("maxDistance") = -1.0,
+       python::arg("conformerIdxs") = python::make_tuple(),
        python::arg("atomCompare") = RDKit::AtomCompareElements,
        python::arg("bondCompare") = RDKit::BondCompareOrder,
        python::arg("ringCompare") = RDKit::IgnoreRingFusion,
@@ -753,6 +766,12 @@ BOOST_PYTHON_MODULE(rdFMCS) {
       .def_readwrite("MatchFormalCharge",
                      &RDKit::MCSAtomCompareParameters::MatchFormalCharge,
                      "include formal charge in the match")
+      .def_readwrite("MaxDistance",
+                     &RDKit::MCSAtomCompareParameters::MaxDistance,
+                     "Require atoms to be within this many angstroms in 3D")
+      .def_readwrite("ConformerIdxs",
+                     &RDKit::MCSAtomCompareParameters::ConformerIdxs,
+                     "Conformer IDs to use (default is 0) for each molecule")
       .def_readwrite("RingMatchesRingOnly",
                      &RDKit::MCSAtomCompareParameters::RingMatchesRingOnly,
                      "ring atoms are only allowed to match other ring atoms")

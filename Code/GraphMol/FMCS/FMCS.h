@@ -37,6 +37,19 @@ typedef enum {
   StrictRingFusion
 } RingComparator;
 
+
+namespace FMCS {
+class RingMatchTableSet;
+typedef std::map<const Atom*, std::map<const Atom*, bool>> AtomDistanceCache;
+struct CompareFunctionsData {
+  FMCS::AtomDistanceCache atomDistanceCache;
+  std::map<const ROMol*, unsigned> conformerIdxMap;
+  FMCS::RingMatchTableSet* ringMatchTables;
+  void* userData = nullptr;
+  void clear();
+};
+}
+
 struct RDKIT_FMCS_EXPORT MCSAtomCompareParameters {
   bool MatchValences = false;
   bool MatchChiralTag = false;
@@ -44,6 +57,8 @@ struct RDKIT_FMCS_EXPORT MCSAtomCompareParameters {
   bool RingMatchesRingOnly = false;
   bool CompleteRingsOnly = false;
   bool MatchIsotope = false;
+  float MaxDistance = -1.0;
+  std::vector<unsigned> ConformerIdxs;
 };
 
 struct RDKIT_FMCS_EXPORT MCSBondCompareParameters {
@@ -79,6 +94,10 @@ RDKIT_FMCS_EXPORT bool checkAtomChirality(const MCSAtomCompareParameters& p,
                                           const ROMol& mol1, unsigned int atom1,
                                           const ROMol& mol2,
                                           unsigned int atom2);
+RDKIT_FMCS_EXPORT bool checkAtomDistance(const MCSAtomCompareParameters& p,
+                                         const ROMol& mol1, unsigned int atom1,
+                                         const ROMol& mol2, unsigned int atom2,
+                                         void* userData);
 
 RDKIT_FMCS_EXPORT bool MCSAtomCompareAny(const MCSAtomCompareParameters& p,
                                          const ROMol& mol1, unsigned int atom1,
@@ -101,7 +120,7 @@ RDKIT_FMCS_EXPORT bool checkBondStereo(const MCSBondCompareParameters& p,
 RDKIT_FMCS_EXPORT bool checkBondRingMatch(const MCSBondCompareParameters& p,
                                           const ROMol& mol1, unsigned int bond1,
                                           const ROMol& mol2, unsigned int bond2,
-                                          void* v_ringMatchMatrixSet);
+                                          void* userData);
 
 RDKIT_FMCS_EXPORT bool MCSBondCompareAny(const MCSBondCompareParameters& p,
                                          const ROMol& mol1, unsigned int bond1,
@@ -178,12 +197,15 @@ RDKIT_FMCS_EXPORT MCSResult findMCS(
     const std::vector<ROMOL_SPTR>& mols, bool maximizeBonds, double threshold,
     unsigned timeout, bool verbose, bool matchValences,
     bool ringMatchesRingOnly, bool completeRingsOnly, bool matchChiralTag,
+    float maxDistance, const std::vector<unsigned> conformerIdxs,
     AtomComparator atomComp, BondComparator bondComp, RingComparator ringComp);
 RDKIT_FMCS_EXPORT MCSResult
 findMCS(const std::vector<ROMOL_SPTR>& mols, bool maximizeBonds,
         double threshold = 1.0, unsigned timeout = 3600, bool verbose = false,
         bool matchValences = false, bool ringMatchesRingOnly = false,
         bool completeRingsOnly = false, bool matchChiralTag = false,
+	float maxDistance = -1.0,
+        const std::vector<unsigned> conformerIdxs = {},
         AtomComparator atomComp = AtomCompareElements,
         BondComparator bondComp = BondCompareOrder);
 

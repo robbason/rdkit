@@ -55,7 +55,7 @@ unsigned int RGroupDecompositionParameters::autoGetLabels(const RWMol &core) {
 bool rgdAtomCompare(const MCSAtomCompareParameters &p, const ROMol &mol1,
                     unsigned int atom1, const ROMol &mol2, unsigned int atom2,
                     void *userData) {
-  if (!MCSAtomCompareElements(p, mol1, atom1, mol2, atom2, nullptr)) {
+  if (!MCSAtomCompareElements(p, mol1, atom1, mol2, atom2, userData)) {
     return false;
   }
   unsigned int autoLabels = *reinterpret_cast<unsigned int *>(userData);

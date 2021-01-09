@@ -1845,7 +1845,7 @@ void test_p38() {
   }
   {
     MCSResult res =
-        findMCS(mols, true, 1.0, 3600, false, false, true, true, false,
+        findMCS(mols, true, 1.0, 3600, false, false, true, true, false, -1.0, {},
                 AtomCompareElements, BondCompareOrder, PermissiveRingFusion);
     // std::cerr << "MCS MatchFusedRings: "
     //           << res.SmartsString << " " << res.NumAtoms
@@ -1856,7 +1856,7 @@ void test_p38() {
   }
   {
     MCSResult res =
-        findMCS(mols, true, 1.0, 3600, false, false, true, true, false,
+        findMCS(mols, true, 1.0, 3600, false, false, true, true, false, -1.0, {},
                 AtomCompareElements, BondCompareOrder, StrictRingFusion);
     // std::cerr << "MCS MatchFusedRings: "
     //           << res.SmartsString << " " << res.NumAtoms
