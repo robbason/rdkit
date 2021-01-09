@@ -176,13 +176,13 @@ bool SubstructMatchCustom(
     MCSAtomCompareFunction atomCompare, MCSBondCompareFunction bondCompare,
     MCSFinalMatchCheckFunction finalCompare,
     const MCSAtomCompareParameters& acp, const MCSBondCompareParameters& bcp,
-    MCSCompareFunctionsData& compareFunctionsData, match_V_t* match) {
+    MCSCompareFunctionsData& cfd, match_V_t* match) {
   RDUNUSED_PARAM(finalCompare);
   MolMatchFinalCheckFunctor matchChecker(query, target, querySrc, mol, nullptr);
   AtomLabelFunctor atomLabeler(query, target, querySrc, mol, atomCompare, acp,
-                               compareFunctionsData);
+                               cfd);
   BondLabelFunctor bondLabeler(query, target, querySrc, mol, bondCompare, bcp,
-                               compareFunctionsData);
+                               cfd);
 
   match_V_t dummy_match;
   if (!match) {

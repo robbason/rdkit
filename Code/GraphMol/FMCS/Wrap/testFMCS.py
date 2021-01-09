@@ -641,7 +641,7 @@ class Common:
     def test10MatchChargeAndParams(self, **kwargs):
         smis = ("CCNC", "CCN(C)C", "CC[N+](C)C", "CC[C+](C)C")
         ms = [Chem.MolFromSmiles(x) for x in smis]
-
+        import pdb;pdb.set_trace()
         if kwargs:
             ps = Common.getParams(**kwargs)
             mcs = rdFMCS.FindMCS(ms, ps)

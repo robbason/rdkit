@@ -38,6 +38,6 @@ RDKIT_FMCS_EXPORT bool SubstructMatchCustom(
     MCSAtomCompareFunction atomCompare, MCSBondCompareFunction bondCompare,
     MCSFinalMatchCheckFunction finalCompare,
     const MCSAtomCompareParameters& acp, const MCSBondCompareParameters& bcp,
-    MCSCompareFunctionsData& compareFunctionsData, match_V_t* match = nullptr);
+    MCSCompareFunctionsData& cfd, match_V_t* match = nullptr);
 }  // namespace FMCS
 }  // namespace RDKit

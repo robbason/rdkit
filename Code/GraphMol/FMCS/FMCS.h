@@ -46,8 +46,7 @@ struct RDKIT_FMCS_EXPORT MCSCompareFunctionsData {
   std::map<const ROMol*, unsigned> conformerIdxMap;
   FMCS::RingMatchTableSet* ringMatchTables = nullptr;
   void* userData = nullptr;
-  virtual ~MCSCompareFunctionsData() {}  // Make it polymorphic
-  virtual void clear() {
+  void clear() {
     atomDistanceCache.clear();
     conformerIdxMap.clear();
     ringMatchTables = nullptr;
