@@ -170,6 +170,11 @@ struct RDKIT_FMCS_EXPORT MCSParameters {
   void setMCSAtomTyperFromConstChar(const char* atomComp);
   void setMCSBondTyperFromEnum(BondComparator bondComp);
   void setMCSBondTyperFromConstChar(const char* bondComp);
+  // only used from MaximumCommonSubgraph. TODO: make private and use 'friend'
+  void *atomFunctionsData(FMCS::CompareFunctionsData *cfd);
+  void *bondFunctionsData(FMCS::CompareFunctionsData *cfd);
+  bool isCustomAtomTyper();
+  bool isCustomBondTyper();
 };
 
 struct RDKIT_FMCS_EXPORT MCSResult {
