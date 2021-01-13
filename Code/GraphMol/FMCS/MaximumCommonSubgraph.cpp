@@ -32,7 +32,9 @@ struct LabelDefinition {
 
 MaximumCommonSubgraph::MaximumCommonSubgraph(const MCSParameters* params,
                                              void* userData) {
-  CompareFunctionsData.userData = userData;
+  if (nullptr != userData) {
+    CompareFunctionsData.userData = userData;
+  }
   Parameters = (nullptr != params ? *params : MCSParameters());
   if (!Parameters.ProgressCallback) {
     Parameters.ProgressCallback = MCSProgressCallbackTimeout;
@@ -70,7 +72,10 @@ void MaximumCommonSubgraph::init() {
 #ifdef DUP_SUBSTRUCT_CACHE
   DuplicateCache.clear();
 #endif
-
+  if (nullptr != Parameters.CompareFunctionsUserData){
+    CompareFunctionsData.userData = Parameters.CompareFunctionsUserData;
+  }
+  
 #ifdef FAST_SUBSTRUCT_CACHE
   loadMatchTables(QueryMolecule, QueryAtomMatchTable, QueryBondMatchTable);
   loadBondLabels();

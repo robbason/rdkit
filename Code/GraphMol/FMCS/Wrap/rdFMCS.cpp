@@ -24,6 +24,12 @@ namespace python = boost::python;
 
 namespace RDKit {
 
+typedef enum {
+  ShortVersion,
+  LongVersion,
+  InvalidVersion
+} CompareFunctionType;
+
 struct PyMCSAtomCompare : public boost::python::wrapper<PyMCSAtomCompare> {
   inline bool checkAtomRingMatch(const MCSAtomCompareParameters& p,
                                  const ROMol& mol1, unsigned int atom1,
@@ -69,29 +75,30 @@ struct PyMCSBondCompare : public boost::python::wrapper<PyMCSBondCompare> {
                               const ROMol& mol2, unsigned int bond2) const {
     return RDKit::checkBondStereo(p, mol1, bond1, mol2, bond2);
   }
-  inline static void updateRingMatchTables(FMCS::RingMatchTableSet &rmt,
-                                           std::set<const ROMol *> &rmtMols,
-                                           const ROMol &mol1, const ROMol &mol2,
-                                           const MCSParameters &p,
-                                           MCSCompareFunctionsData &cfd) {
+  /*inline static void updateRingMatchTables(
+      std::set<const ROMol *> &rmtMols,
+      const ROMol &mol1, const ROMol &mol2,
+      const MCSParameters &p,
+      MCSCompareFunctionsData &cfd) {
     if (!rmtMols.count(&mol1)) {
-      rmt.init(&mol1);
-      rmt.computeRingMatchTable(&mol1, &mol1, p, cfd);
+      cfd.ringMatchTables->init(&mol1);
+      cfd.ringMatchTables->computeRingMatchTable(&mol1, &mol1, p, cfd);
       rmtMols.insert(&mol1);
     }
     if (!rmtMols.count(&mol2)) {
-      rmt.computeRingMatchTable(&mol1, &mol2, p, cfd);
-      rmt.addTargetBondRingsIndeces(&mol2);
+      cfd.ringMatchTables->computeRingMatchTable(&mol1, &mol2, p, cfd);
+      cfd.ringMatchTables->addTargetBondRingsIndeces(&mol2);
       rmtMols.insert(&mol2);
     }
-  }
+    }*/
   inline bool checkBondRingMatch(const MCSBondCompareParameters& p,
                                  const ROMol& mol1, unsigned int bond1,
                                  const ROMol& mol2, unsigned int bond2,
-                                 MCSCompareFunctionsData& cfd) {
-    updateRingMatchTables(ringMatchTables, ringMatchTablesMols, mol1, mol2,
-                          *mcsParameters, cfd);
-    return RDKit::checkBondRingMatch(p, mol1, bond1, mol2, bond2, &ringMatchTables);
+                                 const MCSCompareFunctionsData& cfd) {
+    //updateRingMatchTables(ringMatchTablesMols, mol1, mol2,
+    //                      *mcsParameters, cfd);
+    return RDKit::checkBondRingMatch(p, mol1, bond1, mol2, bond2,
+                                     cfd.ringMatchTables);
   }
   bool hasPythonOverride(const char *attrName) {
     auto obj = get_override(attrName);
@@ -115,21 +122,22 @@ struct PyMCSBondCompare : public boost::python::wrapper<PyMCSBondCompare> {
     return false;
   }
   const MCSParameters *mcsParameters;
-  std::set<const ROMol *> ringMatchTablesMols;
-  FMCS::RingMatchTableSet ringMatchTables;
+  //  std::set<const ROMol *> ringMatchTablesMols;
+  FMCS::RingMatchTableSet *ringMatchTables;
 };
 
 struct PyAtomBondCompData {
   std::string atomCompFuncName;
   std::string bondCompFuncName;
+  CompareFunctionType pyAtomCompType;
+  CompareFunctionType pyBondCompType;
   python::object pyAtomComp;
   python::object pyBondComp;
-  MCSBondCompareFunction standardBondTyperFunc;
 };
 
-struct PyCompareFunctionData : MCSCompareFunctionsData {
+struct PyCompareFunctionData {
   const MCSParameters *mcsParameters;
-  std::set<const ROMol *> *ringMatchTablesMols;
+  //std::set<const ROMol *> *ringMatchTablesMols;
   PyAtomBondCompData pyAtomBondCompData;
 };
 
@@ -272,6 +280,32 @@ public:
     PyErr_SetString(PyExc_TypeError, ss.str().c_str());
     python::throw_error_already_set();
   }
+  CompareFunctionType inspectTyper(python::object compObject, std::string funcName) {
+    PyObject* funcObject = PyObject_GetAttrString(compObject.ptr(), funcName.c_str());
+    PyObject* fc = PyObject_GetAttrString(funcObject, "__code__");
+    if (nullptr == fc) {
+      PyErr_SetString(PyExc_TypeError,
+                      "No __code__ attribute");
+      python::throw_error_already_set();
+      return InvalidVersion;
+    }
+    PyObject* ac = PyObject_GetAttrString(fc, "co_argcount");
+    const int count = PyInt_AsLong(ac);
+    Py_DECREF(ac);
+    Py_DECREF(fc);
+    Py_DECREF(funcObject);
+    if (count == 6) {
+      return ShortVersion;
+    } else if (count == 7) {
+      return LongVersion;
+    } else {
+      PyErr_SetString(
+          PyExc_AttributeError,
+          ("Incorrect number of arguments to comparison function: " + std::to_string(count) + " expected 6 or 7").c_str());
+      python::throw_error_already_set();
+      return InvalidVersion;
+    }
+  }
   void setMCSAtomTyper(PyObject *atomComp) {
     PRECONDITION(atomComp, "atomComp must not be NULL");
     python::object atomCompObject(python::handle<>(python::borrowed(atomComp)));
@@ -312,7 +346,9 @@ public:
         else {
           pcfd->pyAtomBondCompData.atomCompFuncName = COMPARE_FUNC_NAME;
         }
+        p->CompareFunctionsUserData = pcfd.get();
         p->AtomTyper = MCSAtomComparePyFunc;
+        pcfd->pyAtomBondCompData.pyAtomCompType = inspectTyper(atomCompObject, pcfd->pyAtomBondCompData.atomCompFuncName);
         pcfd->pyAtomBondCompData.pyAtomComp = atomCompObject;
         pcfd->mcsParameters = p.get();
       }
@@ -386,14 +422,15 @@ public:
         else {
           pcfd->pyAtomBondCompData.bondCompFuncName = COMPARE_FUNC_NAME;
         }
-
+        p->CompareFunctionsUserData = pcfd.get();
         p->BondTyper = MCSBondComparePyFunc;
+        pcfd->pyAtomBondCompData.pyBondCompType = inspectTyper(bondCompObject, pcfd->pyAtomBondCompData.bondCompFuncName);
         pcfd->pyAtomBondCompData.pyBondComp = bondCompObject;
         PyMCSBondCompare *bc = extractPyMCSBondCompare();
         bc->mcsParameters = p.get();
         pcfd->mcsParameters = p.get();
-        pcfd->ringMatchTablesMols = &bc->ringMatchTablesMols;
-        pcfd->ringMatchTables = &bc->ringMatchTables;
+        //pcfd->ringMatchTablesMols = &bc->ringMatchTablesMols;
+        //pcfd->ringMatchTables = &bc->ringMatchTables;
       }
       else {
         PyErr_SetString(PyExc_TypeError,
@@ -423,24 +460,6 @@ public:
       python::throw_error_already_set();
     }
     return res;
-  }
-  void setBondTyperWrapper() {
-    if (!pcfd->pyAtomBondCompData.standardBondTyperFunc) {
-      pcfd->pyAtomBondCompData.standardBondTyperFunc = p->BondTyper;
-      pcud->pyAtomBondCompData.standardBondTyperFunc = p->BondTyper;
-      btwParams = *p;
-      pcfd->mcsParameters = &btwParams;
-      pcfd->ringMatchTablesMols = &btwPyMCSBondCompare.ringMatchTablesMols;
-      pcfd->ringMatchTables = &btwPyMCSBondCompare.ringMatchTables;
-      p->BondTyper = MCSBondComparePyFunc;
-    }
-  }
-  void unsetBondTyperWrapper() {
-    if (pcfd->pyAtomBondCompData.standardBondTyperFunc) {
-      p->BondTyper = pcfd->pyAtomBondCompData.standardBondTyperFunc;
-      pcfd->pyAtomBondCompData.standardBondTyperFunc = nullptr;
-      pcud->pyAtomBondCompData.standardBondTyperFunc = nullptr;
-    }
   }
   void setMCSProgressCallback(PyObject *progress) {
     PRECONDITION(progress, "progress must not be NULL");
@@ -493,27 +512,39 @@ public:
     }
     return python::object();
   }
-  void clearRingTableCache() {
+  /*  void clearRingTableCache() {
     if (pcfd->ringMatchTablesMols) {
       pcfd->ringMatchTablesMols->clear();
     }
-    if (pcfd->ringMatchTables) {
-      pcfd->ringMatchTables->clear();
-    }
-  }
+    // TODO: we don't have access to CFD here, so can't clear its ringMatchTables object
+    }*/
 private:
   static bool MCSAtomComparePyFunc(const MCSAtomCompareParameters& p,
                                    const ROMol& mol1, unsigned int atom1,
                                    const ROMol& mol2, unsigned int atom2,
                                    MCSCompareFunctionsData& cfd) {
-    PyCompareFunctionData& pcfd = static_cast<PyCompareFunctionData&>(cfd);
+    PyCompareFunctionData* pcfd = static_cast<PyCompareFunctionData*>(cfd.userData);
     bool res = false;
     {
       PyGILStateHolder h;
-      res = python::call_method<bool>(pcfd.pyAtomBondCompData.pyAtomComp.ptr(),
-                                      pcfd.pyAtomBondCompData.atomCompFuncName.c_str(),
-                                      boost::ref(p), boost::ref(mol1),
-                                      atom1, boost::ref(mol2), atom2);
+      if (pcfd->pyAtomBondCompData.pyAtomCompType == ShortVersion) {
+        res = python::call_method<bool>(
+            pcfd->pyAtomBondCompData.pyAtomComp.ptr(),
+            pcfd->pyAtomBondCompData.atomCompFuncName.c_str(),
+            boost::ref(p), boost::ref(mol1),
+            atom1, boost::ref(mol2), atom2);
+      } else if (pcfd->pyAtomBondCompData.pyAtomCompType == LongVersion) {
+        res = python::call_method<bool>(
+            pcfd->pyAtomBondCompData.pyAtomComp.ptr(),
+            pcfd->pyAtomBondCompData.atomCompFuncName.c_str(),
+            boost::ref(p), boost::ref(mol1),
+            atom1, boost::ref(mol2), atom2, boost::ref(cfd));
+      } else {
+        PyErr_SetString(
+            PyExc_AttributeError,
+            "Incorrect number of arguments to AtomComp");
+        python::throw_error_already_set();
+      }      
     }
     return res;
   }
@@ -522,23 +553,30 @@ private:
                                    const ROMol& mol1, unsigned int bond1,
                                    const ROMol& mol2, unsigned int bond2,
                                    MCSCompareFunctionsData& cfd) {
-    PyCompareFunctionData& pcfd = static_cast<PyCompareFunctionData&>(cfd);
+    PyCompareFunctionData* pcfd = static_cast<PyCompareFunctionData* >(cfd.userData);
+    
     bool res = false;
-    if ((p.RingMatchesRingOnly ||
-         pcfd.mcsParameters->AtomCompareParameters.RingMatchesRingOnly) &&
-        pcfd.pyAtomBondCompData.pyBondComp.is_none()) {
-      PyMCSBondCompare::updateRingMatchTables(*pcfd.ringMatchTables,
-                                              *pcfd.ringMatchTablesMols, mol1,
-                                              mol2, *pcfd.mcsParameters,
-                                              cfd);
-      res = pcfd.pyAtomBondCompData.standardBondTyperFunc(
-          p, mol1, bond1, mol2, bond2, cfd);
-    } else {
+    {
       PyGILStateHolder h;
-      res = python::call_method<bool>(pcfd.pyAtomBondCompData.pyBondComp.ptr(),
-                                      pcfd.pyAtomBondCompData.bondCompFuncName.c_str(),
-                                      boost::ref(p), boost::ref(mol1),
-                                      bond1, boost::ref(mol2), bond2);
+      if (pcfd->pyAtomBondCompData.pyBondCompType == ShortVersion) {
+        res = python::call_method<bool>(
+            pcfd->pyAtomBondCompData.pyBondComp.ptr(),
+            pcfd->pyAtomBondCompData.bondCompFuncName.c_str(),
+            boost::ref(p), boost::ref(mol1),
+            bond1, boost::ref(mol2), bond2);
+      } else if (pcfd->pyAtomBondCompData.pyBondCompType == LongVersion) {
+        res = python::call_method<bool>(
+            pcfd->pyAtomBondCompData.pyBondComp.ptr(),
+            pcfd->pyAtomBondCompData.bondCompFuncName.c_str(),
+            boost::ref(p), boost::ref(mol1),
+            bond1, boost::ref(mol2), bond2, boost::ref(cfd));
+      } else {
+        PyErr_SetString(
+            PyExc_AttributeError,
+            "Incorrect number of arguments to BondComp");
+        python::throw_error_already_set();
+        return false;
+      }
     }
     return res;
   }
@@ -549,11 +587,7 @@ private:
     PyProgressCallbackUserData *pcud = static_cast<PyProgressCallbackUserData *>(userData);
     bool res = false;
     {
-      MCSParameters paramsCopy(params);
-      if (pcud->pyAtomBondCompData.standardBondTyperFunc) {
-        paramsCopy.BondTyper = pcud->pyAtomBondCompData.standardBondTyperFunc;
-      }
-      PyMCSParameters ps(paramsCopy, *pcud);
+      PyMCSParameters ps(params, *pcud);
       PyMCSProgressData pd(stat);
       PyGILStateHolder h;
       res = python::call_method<bool>(pcud->pyMCSProgress.ptr(), pcud->callbackFuncName.c_str(),
@@ -629,7 +663,7 @@ MCSResult *FindMCSWrapper2(python::object mols, PyMCSParameters &pyMcsParams) {
   }
 
   MCSResult *res = nullptr;
-  pyMcsParams.clearRingTableCache();
+  //  pyMcsParams.clearRingTableCache();
   python::extract<AtomComparator> extractAtomComparator(
       pyMcsParams.getMCSAtomTyper());
   python::extract<BondComparator> extractBondComparator(
@@ -638,17 +672,15 @@ MCSResult *FindMCSWrapper2(python::object mols, PyMCSParameters &pyMcsParams) {
   // we still need to call MCSBondComparePyFunc to correctly set up userData
   // with RingMatchTables, and then call the standard C++ BondTyper (Github
   // #3635)
-  if (!extractAtomComparator.check() && extractBondComparator.check() &&
+  /*if (!extractAtomComparator.check() && extractBondComparator.check() &&
       (pyMcsParams.getBondCompareParameters().CompleteRingsOnly ||
        pyMcsParams.getBondCompareParameters().RingMatchesRingOnly ||
        pyMcsParams.getAtomCompareParameters().RingMatchesRingOnly)) {
-    pyMcsParams.setBondTyperWrapper();
-  }
+       }*/
   {
     NOGIL gil;
     res = new MCSResult(findMCS(ms, pyMcsParams.get()));
   }
-  pyMcsParams.unsetBondTyperWrapper();
   return res;
 }
 }  // namespace RDKit
@@ -707,7 +739,11 @@ BOOST_PYTHON_MODULE(rdFMCS) {
        python::arg("seedSmarts") = ""),
       python::return_value_policy<python::manage_new_object>(),
       docString.c_str());
-
+  python::class_<RDKit::MCSCompareFunctionsData, boost::noncopyable>(
+      "MCSCompareFunctionsData", "Data used internally during MCS execution")
+      .add_property("ringMatchTables",
+                    &RDKit::MCSCompareFunctionsData::ringMatchTables,
+                    "Ring Match Tables");
   python::class_<RDKit::PyMCSParameters, boost::noncopyable>(
       "MCSParameters", "Parameters controlling how the MCS is constructed")
       .add_property("MaximizeBonds",
@@ -888,25 +924,25 @@ BOOST_PYTHON_MODULE(rdFMCS) {
       "to an instance of the subclass")
       .def("CheckBondStereo", &RDKit::PyMCSBondCompare::checkBondStereo,
            (python::arg("self"), python::arg("parameters"),
-              python::arg("mol1"), python::arg("bond1"),
-              python::arg("mol2"), python::arg("bond2")),
-              "Return True if both bonds have, or have not, a stereo descriptor")
+            python::arg("mol1"), python::arg("bond1"),
+            python::arg("mol2"), python::arg("bond2")),
+           "Return True if both bonds have, or have not, a stereo descriptor")
       .def("CheckBondRingMatch", &RDKit::PyMCSBondCompare::checkBondRingMatch,
            (python::arg("self"), python::arg("parameters"),
-              python::arg("mol1"), python::arg("bond1"),
-              python::arg("mol2"), python::arg("bond2")),
+            python::arg("mol1"), python::arg("bond1"),
+            python::arg("mol2"), python::arg("bond2"), python::arg("cfd")),
               "Return True if both bonds are, or are not, part of a ring")
       .def(COMPARE_FUNC_NAME, &RDKit::PyMCSBondCompare::operator(),
            (python::arg("self"), python::arg("parameters"),
-              python::arg("mol1"), python::arg("bond1"),
-              python::arg("mol2"), python::arg("bond2")),
-              "override to implement custom bond comparison")
+            python::arg("mol1"), python::arg("bond1"),
+            python::arg("mol2"), python::arg("bond2")),
+           "override to implement custom bond comparison")
       // DEPRECATED: remove from here in release 2020.03
       .def(COMPARE_DEPRECATED_FUNC_NAME, &RDKit::PyMCSBondCompare::compare,
            (python::arg("self"), python::arg("parameters"),
-              python::arg("mol1"), python::arg("bond1"),
-              python::arg("mol2"), python::arg("bond2")),
-              "override to implement custom bond comparison")
+            python::arg("mol1"), python::arg("bond1"),
+            python::arg("mol2"), python::arg("bond2")),
+           "override to implement custom bond comparison")
       // DEPRECATED: remove until here in release 2020.03
       ;
 

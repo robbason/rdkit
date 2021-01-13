@@ -46,7 +46,6 @@ struct RDKIT_FMCS_EXPORT MCSCompareFunctionsData {
   std::map<const ROMol*, unsigned> conformerIdxMap;
   FMCS::RingMatchTableSet* ringMatchTables = nullptr;
   void* userData = nullptr;
-  virtual ~MCSCompareFunctionsData() {}  // Make it polymorphic
   virtual void clear() {
     atomDistanceCache.clear();
     conformerIdxMap.clear();
@@ -161,6 +160,7 @@ struct RDKIT_FMCS_EXPORT MCSParameters {
   MCSBondCompareParameters BondCompareParameters;
   MCSAtomCompareFunction AtomTyper = MCSAtomCompareElements;
   MCSBondCompareFunction BondTyper = MCSBondCompareOrder;
+  void* CompareFunctionsUserData = nullptr;
   MCSProgressCallback ProgressCallback =
       nullptr;  // return false to interrupt execution
   void* ProgressCallbackUserData = nullptr;
