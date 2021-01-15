@@ -243,7 +243,6 @@ bool checkAtomDistance(const MCSAtomCompareParameters& p,
                        MCSCompareFunctionsData& cfd){
     unsigned int confId1 = cfd.conformerIdxMap[&mol1];
     unsigned int confId2 = cfd.conformerIdxMap[&mol2];
-    // If there is no setting for conformer idxs, default to 0
     if (mol1.getNumConformers() <= confId1 ||
         mol2.getNumConformers() <= confId2){
       throw std::runtime_error(
@@ -415,15 +414,15 @@ bool checkBondStereo(const MCSBondCompareParameters& p,
 bool checkBondRingMatch(const MCSBondCompareParameters&, const ROMol&,
                         unsigned int bond1, const ROMol& mol2,
                         unsigned int bond2,
-                        FMCS::RingMatchTableSet* ringMatchTables) {
-  if (!ringMatchTables) {
+                        const MCSCompareFunctionsData& cfd) {
+  if (!cfd.ringMatchTables) {
     throw "ringMatchTables is NULL";  // never
   }
 
   const std::vector<size_t>& ringsIdx1 =
-      ringMatchTables->getQueryBondRings(bond1);  // indices of rings
+      cfd.ringMatchTables->getQueryBondRings(bond1);  // indices of rings
   const std::vector<size_t>& ringsIdx2 =
-      ringMatchTables->getTargetBondRings(&mol2, bond2);  // indices of rings
+      cfd.ringMatchTables->getTargetBondRings(&mol2, bond2);  // indices of rings
   bool bond1inRing = !ringsIdx1.empty();
   bool bond2inRing = !ringsIdx2.empty();
 
@@ -438,7 +437,7 @@ bool MCSBondCompareAny(const MCSBondCompareParameters& p, const ROMol& mol1,
     return false;
   }
   if (p.RingMatchesRingOnly) {
-    return checkBondRingMatch(p, mol1, bond1, mol2, bond2, cfd.ringMatchTables);
+    return checkBondRingMatch(p, mol1, bond1, mol2, bond2, cfd);
   }
   return true;
 }
@@ -456,7 +455,7 @@ bool MCSBondCompareOrder(const MCSBondCompareParameters& p, const ROMol& mol1,
       return false;
     }
     if (p.RingMatchesRingOnly) {
-      return checkBondRingMatch(p, mol1, bond1, mol2, bond2, cfd.ringMatchTables);
+      return checkBondRingMatch(p, mol1, bond1, mol2, bond2, cfd);
     }
     return true;
   }
@@ -477,7 +476,7 @@ bool MCSBondCompareOrderExact(const MCSBondCompareParameters& p,
       return false;
     }
     if (p.RingMatchesRingOnly) {
-      return checkBondRingMatch(p, mol1, bond1, mol2, bond2, cfd.ringMatchTables);
+      return checkBondRingMatch(p, mol1, bond1, mol2, bond2, cfd);
     }
     return true;
   }

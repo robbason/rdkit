@@ -75,30 +75,11 @@ struct PyMCSBondCompare : public boost::python::wrapper<PyMCSBondCompare> {
                               const ROMol& mol2, unsigned int bond2) const {
     return RDKit::checkBondStereo(p, mol1, bond1, mol2, bond2);
   }
-  /*inline static void updateRingMatchTables(
-      std::set<const ROMol *> &rmtMols,
-      const ROMol &mol1, const ROMol &mol2,
-      const MCSParameters &p,
-      MCSCompareFunctionsData &cfd) {
-    if (!rmtMols.count(&mol1)) {
-      cfd.ringMatchTables->init(&mol1);
-      cfd.ringMatchTables->computeRingMatchTable(&mol1, &mol1, p, cfd);
-      rmtMols.insert(&mol1);
-    }
-    if (!rmtMols.count(&mol2)) {
-      cfd.ringMatchTables->computeRingMatchTable(&mol1, &mol2, p, cfd);
-      cfd.ringMatchTables->addTargetBondRingsIndeces(&mol2);
-      rmtMols.insert(&mol2);
-    }
-    }*/
   inline bool checkBondRingMatch(const MCSBondCompareParameters& p,
                                  const ROMol& mol1, unsigned int bond1,
                                  const ROMol& mol2, unsigned int bond2,
                                  const MCSCompareFunctionsData& cfd) {
-    //updateRingMatchTables(ringMatchTablesMols, mol1, mol2,
-    //                      *mcsParameters, cfd);
-    return RDKit::checkBondRingMatch(p, mol1, bond1, mol2, bond2,
-                                     cfd.ringMatchTables);
+    return RDKit::checkBondRingMatch(p, mol1, bond1, mol2, bond2, cfd);
   }
   bool hasPythonOverride(const char *attrName) {
     auto obj = get_override(attrName);
@@ -122,8 +103,6 @@ struct PyMCSBondCompare : public boost::python::wrapper<PyMCSBondCompare> {
     return false;
   }
   const MCSParameters *mcsParameters;
-  //  std::set<const ROMol *> ringMatchTablesMols;
-  FMCS::RingMatchTableSet *ringMatchTables;
 };
 
 struct PyAtomBondCompData {
@@ -137,7 +116,6 @@ struct PyAtomBondCompData {
 
 struct PyCompareFunctionData {
   const MCSParameters *mcsParameters;
-  //std::set<const ROMol *> *ringMatchTablesMols;
   PyAtomBondCompData pyAtomBondCompData;
 };
 
@@ -429,8 +407,6 @@ public:
         PyMCSBondCompare *bc = extractPyMCSBondCompare();
         bc->mcsParameters = p.get();
         pcfd->mcsParameters = p.get();
-        //pcfd->ringMatchTablesMols = &bc->ringMatchTablesMols;
-        //pcfd->ringMatchTables = &bc->ringMatchTables;
       }
       else {
         PyErr_SetString(PyExc_TypeError,
@@ -512,12 +488,6 @@ public:
     }
     return python::object();
   }
-  /*  void clearRingTableCache() {
-    if (pcfd->ringMatchTablesMols) {
-      pcfd->ringMatchTablesMols->clear();
-    }
-    // TODO: we don't have access to CFD here, so can't clear its ringMatchTables object
-    }*/
 private:
   static bool MCSAtomComparePyFunc(const MCSAtomCompareParameters& p,
                                    const ROMol& mol1, unsigned int atom1,
@@ -663,20 +633,10 @@ MCSResult *FindMCSWrapper2(python::object mols, PyMCSParameters &pyMcsParams) {
   }
 
   MCSResult *res = nullptr;
-  //  pyMcsParams.clearRingTableCache();
   python::extract<AtomComparator> extractAtomComparator(
       pyMcsParams.getMCSAtomTyper());
   python::extract<BondComparator> extractBondComparator(
       pyMcsParams.getMCSBondTyper());
-  // if a custom Python AtomTyper was set but a custom Python BondTyper was not,
-  // we still need to call MCSBondComparePyFunc to correctly set up userData
-  // with RingMatchTables, and then call the standard C++ BondTyper (Github
-  // #3635)
-  /*if (!extractAtomComparator.check() && extractBondComparator.check() &&
-      (pyMcsParams.getBondCompareParameters().CompleteRingsOnly ||
-       pyMcsParams.getBondCompareParameters().RingMatchesRingOnly ||
-       pyMcsParams.getAtomCompareParameters().RingMatchesRingOnly)) {
-       }*/
   {
     NOGIL gil;
     res = new MCSResult(findMCS(ms, pyMcsParams.get()));
@@ -740,10 +700,7 @@ BOOST_PYTHON_MODULE(rdFMCS) {
       python::return_value_policy<python::manage_new_object>(),
       docString.c_str());
   python::class_<RDKit::MCSCompareFunctionsData, boost::noncopyable>(
-      "MCSCompareFunctionsData", "Data used internally during MCS execution")
-      .add_property("ringMatchTables",
-                    &RDKit::MCSCompareFunctionsData::ringMatchTables,
-                    "Ring Match Tables");
+      "MCSCompareFunctionsData", "Data used internally during MCS execution");
   python::class_<RDKit::PyMCSParameters, boost::noncopyable>(
       "MCSParameters", "Parameters controlling how the MCS is constructed")
       .add_property("MaximizeBonds",

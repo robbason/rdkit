@@ -118,10 +118,10 @@ RDKIT_FMCS_EXPORT bool MCSAtomCompareIsotopes(
 RDKIT_FMCS_EXPORT bool checkBondStereo(const MCSBondCompareParameters& p,
                                        const ROMol& mol1, unsigned int bond1,
                                        const ROMol& mol2, unsigned int bond2);
-RDKIT_FMCS_EXPORT bool checkBondRingMatch(
-    const MCSBondCompareParameters& p, const ROMol& mol1, unsigned int bond1,
-    const ROMol& mol2, unsigned int bond2,
-    FMCS::RingMatchTableSet* ringMatchTables);
+RDKIT_FMCS_EXPORT bool checkBondRingMatch(const MCSBondCompareParameters& p,
+                                          const ROMol& mol1, unsigned int bond1,
+                                          const ROMol& mol2, unsigned int bond2,
+                                          const MCSCompareFunctionsData& cfd);
 
 RDKIT_FMCS_EXPORT bool MCSBondCompareAny(const MCSBondCompareParameters& p,
                                          const ROMol& mol1, unsigned int bond1,

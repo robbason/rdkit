@@ -711,7 +711,7 @@ void testMaxDistanceFlip(){
   BOOST_LOG(rdInfoLog) << "\tdone" << std::endl;
 
 }
-
+// TODO: Add test for non-default conformer idx
 void testMaxDistance() {
   BOOST_LOG(rdInfoLog) << "-------------------------------------" << std::endl;
   BOOST_LOG(rdInfoLog) << "Testing FMCS testMaxDistance" << std::endl;

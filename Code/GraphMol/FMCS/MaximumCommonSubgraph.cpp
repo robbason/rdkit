@@ -162,10 +162,9 @@ void MaximumCommonSubgraph::loadBondLabels() {
   QueryBondLabels.resize(nq);
   for (size_t aj = 0; aj < nq; aj++) {
     const Bond* bond = QueryMolecule->getBondWithIdx(aj);
-    unsigned ring = 0;
-    if (!CompareFunctionsData.ringMatchTables &&
-        (Parameters.BondCompareParameters.CompleteRingsOnly ||
-         Parameters.BondCompareParameters.RingMatchesRingOnly)) {
+    unsigned ring = 0;    
+    if (Parameters.BondCompareParameters.CompleteRingsOnly ||
+        Parameters.BondCompareParameters.RingMatchesRingOnly) {
       ring = RingMatchTables.isQueryBondInRing(aj) ? 0 : 1;  // is bond in ring
     }
     if (MCSBondCompareAny ==
@@ -1383,6 +1382,7 @@ bool MaximumCommonSubgraph::matchIncrementalFast(Seed& seed, unsigned itarget) {
 #endif
   return matched;
 }
+
 void MaximumCommonSubgraph::printVerboseStatistics(const MCSResult& res) const {
   unsigned itarget = 0;
   for (std::vector<Target>::const_iterator tag = Targets.begin();
